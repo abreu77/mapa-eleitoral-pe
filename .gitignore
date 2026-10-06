@@ -3,3 +3,6 @@ dados_limpos/
 *.zip
 *.csv
 __pycache__/
+PLANO.md
+HANDOFF.md
+coleta/

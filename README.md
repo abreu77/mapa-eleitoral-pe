@@ -65,9 +65,13 @@ Ordem: `limpeza.py` → `analise_p1.py` → `transferencia*.py` → `regressao_m
 Para ver o mapa localmente:
 
 ```
-python -m http.server 8000 --directory site
+python -m http.server 8000 --directory docs
 ```
 
 ## Identidade visual
 
 Identidade própria, inspirada no manual de marca do Governo de Pernambuco (azul-marinho, tipografia de desenho DIN). Não usa logotipo, brasão, slogan nem elementos da marca. Raquel Lyra em roxo e João Campos em amarelo seguem as cores das campanhas; as cores foram validadas para leitura por pessoas com daltonismo.
+
+## Licença
+
+Código sob licença MIT ([`LICENSE`](LICENSE)). Os dados derivados em `docs/data/` vêm das fontes listadas acima e seguem os termos de cada uma (dados públicos do TSE, IBGE, Tesouro Nacional, MDS, Ministério do Trabalho e BDE/Condepe-Fidem; lado dos prefeitos com crédito ao Jamildo.com).

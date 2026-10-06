@@ -1,4 +1,4 @@
-"""Exporta os dados do mapa (site/data/) a partir de dados_limpos/.
+"""Exporta os dados do mapa (docs/data/) a partir de dados_limpos/.
 
 Níveis: seção, local de votação, zona, município, RD, mesorregião, estado.
 Eleições: 2022 T1, 2022 T2, 2026 T1 (governador). Base dos percentuais: votos totais.
@@ -16,7 +16,7 @@ import pandas as pd
 
 RAIZ = Path(__file__).resolve().parents[1]
 L = RAIZ / 'dados_limpos'
-OUT = RAIZ / 'site/data'
+OUT = RAIZ / 'docs/data'
 OUT.mkdir(parents=True, exist_ok=True)
 TIPOS = {'nr_zona': str, 'nr_secao': str, 'cd_municipio': str, 'nr_local_votacao': str, 'nr_votavel': str}
 ELEICOES = ['2022T1', '2022T2', '2026T1']

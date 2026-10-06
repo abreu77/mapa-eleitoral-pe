@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deputados eleitos em Pernambuco</title>
+<meta name="description" content="Onde cada deputado estadual e federal eleito por Pernambuco em 2026 teve seus votos, da seção eleitoral ao estado, com o lado na disputa entre Raquel Lyra e João Campos. Projeto independente de Diego Abreu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header class="topo">
+  <div class="topo-titulo">
+    <p class="sobretitulo">Deputados eleitos · Pernambuco · 2026</p>
+    <h1>Mapa eleitoral 2022–2026</h1>
+  </div>
+  <nav class="modos" aria-label="Modo do mapa">
+    <a href="index.html">Governador e blocos</a>
+    <a href="deputado.html" aria-current="page">Deputados eleitos</a>
+  </nav>
+  <p class="autoria">Diego Abreu</p>
+</header>
+
+<main class="layout">
+  <aside class="painel" aria-label="Controles e resultados">
+    <section class="bloco">
+      <h2 class="rotulo" id="r-cargo">Cargo</h2>
+      <div class="segmentado" role="radiogroup" aria-labelledby="r-cargo" id="cargo">
+        <button role="radio" data-v="DE2026">Dep. estadual · 49</button>
+        <button role="radio" data-v="DF2026">Dep. federal · 25</button>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <h2 class="rotulo" id="r-modo">Ver por</h2>
+      <div class="segmentado" role="radiogroup" aria-labelledby="r-modo" id="modo">
+        <button role="radio" data-v="eleito">Eleito</button>
+        <button role="radio" data-v="partido">Partido</button>
+        <button role="radio" data-v="federacao">Federação</button>
+      </div>
+      <label class="rotulo" for="deputado" id="rotulo-escolha">Eleito</label>
+      <select id="deputado" class="seletor"></select>
+      <div id="ficha"></div>
+    </section>
+
+    <section class="bloco">
+      <h2 class="rotulo" id="r-leitura">Leitura</h2>
+      <div class="abas" role="tablist" aria-labelledby="r-leitura" id="leitura">
+        <button role="tab" data-v="pct">% dos votos no lugar</button>
+        <button role="tab" data-v="peso">Peso na votação do eleito</button>
+      </div>
+      <p class="aviso" id="aviso-leitura"></p>
+    </section>
+
+    <section class="bloco">
+      <div class="linha-rotulo">
+        <h2 class="rotulo" id="r-nivel">Nível</h2>
+        <span class="nivel-atual" id="nivel-nome">Município</span>
+      </div>
+      <input type="range" id="nivel" min="0" max="6" step="1" value="3" aria-labelledby="r-nivel">
+      <div class="marcas" aria-hidden="true">
+        <span>Seção</span><span>Local</span><span>Zona</span><span>Município</span><span>RD</span><span>Meso</span><span>Estado</span>
+      </div>
+    </section>
+
+    <section class="bloco legenda-bloco">
+      <h2 class="rotulo" id="legenda-titulo">Legenda</h2>
+      <div id="legenda"></div>
+    </section>
+
+    <section class="bloco destaque" aria-live="polite">
+      <h2 class="rotulo" id="foco-rotulo">Pernambuco</h2>
+      <div id="foco"></div>
+    </section>
+
+    <section class="bloco">
+      <h2 class="rotulo">Onde teve mais votos</h2>
+      <ol class="top-lista" id="top"></ol>
+    </section>
+
+    <section class="bloco">
+      <label class="rotulo" for="busca">Ir para município</label>
+      <input id="busca" list="lista-municipios" placeholder="Digite o nome" autocomplete="off">
+      <datalist id="lista-municipios"></datalist>
+      <div class="acoes">
+        <button class="botao-texto" id="ver-noronha">Fernando de Noronha</button>
+        <button class="botao-texto" id="ver-estado">Estado inteiro</button>
+        <button class="botao-texto" id="ver-tabela" aria-expanded="false">Ver em tabela</button>
+      </div>
+    </section>
+
+    <details class="bloco notas">
+      <summary>Como ler</summary>
+      <ul>
+        <li>Só os eleitos de 2026: 49 deputados estaduais e 25 federais. Votos nominais do candidato; voto de legenda não entra.</li>
+        <li>% dos votos no lugar: votos do eleito sobre os votos válidos para o mesmo cargo naquele lugar.</li>
+        <li>Peso na votação do eleito: quanto da votação total dele saiu daquele lugar.</li>
+        <li>Partido e federação: soma dos votos nominais dos eleitos do partido ou da federação (só eleitos; demais candidatos e voto de legenda não entram). A cor segue o lado do partido na coligação de governador (TSE); a ficha mostra o lado de cada eleito, que pode ser outro.</li>
+        <li>Cor pelo lado do eleito na disputa para governador: roxo, com Raquel Lyra; amarelo, com João Campos; cinza, sem lado declarado. Lado pela coligação de governador do partido no TSE, corrigido pelo apoio público do eleito: estaduais pela lista do Jamildo.com (05/10/2026), federais por notícias (fonte na ficha do eleito).</li>
+        <li>Seção eleitoral não tem contorno oficial: cada seção é um ponto ao redor do seu local de votação. Seções de voto em trânsito ficam fora dos pontos e dentro dos totais.</li>
+      </ul>
+    </details>
+  </aside>
+
+  <div class="mapa-area">
+    <div id="mapa" role="application" aria-label="Mapa de Pernambuco"></div>
+    <div class="carregando" id="carregando" hidden>Carregando seções…</div>
+    <section class="tabela-area" id="tabela-area" hidden aria-label="Tabela">
+      <div class="tabela-topo">
+        <h2 class="rotulo" id="tabela-titulo">Tabela</h2>
+        <button class="botao-texto" id="fechar-tabela">Fechar</button>
+      </div>
+      <div class="tabela-rolagem"><table id="tabela"></table></div>
+    </section>
+  </div>
+</main>
+
+<footer class="rodape">
+  <p>Projeto independente de Diego Abreu. Não é publicação do Governo de Pernambuco, de campanha nem de mandato.</p>
+  <p>Dados: TSE (votação por seção, candidatos, coligações), IBGE (malha municipal, mesorregiões), BDE/Condepe-Fidem (Regiões de Desenvolvimento), Jamildo.com (lado dos deputados estaduais eleitos), notícias citadas na ficha (deputados federais). Mapa base © OpenStreetMap, OpenMapTiles, OpenFreeMap.</p>
+</footer>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
+<script src="deputado.js"></script>
+</body>
+</html>

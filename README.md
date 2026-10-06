@@ -1,6 +1,6 @@
-# Mapa eleitoral de Pernambuco · governador 2022–2026
+# Mapa eleitoral de Pernambuco · governador 2022–2026 e deputados 2026
 
-Mapa interativo e análise dos votos para governador de Pernambuco no 1º e no 2º turno de 2022 e no 1º turno de 2026, da seção eleitoral ao estado.
+Mapa interativo e análise dos votos para governador de Pernambuco no 1º e no 2º turno de 2022 e no 1º turno de 2026, e dos votos para deputado estadual e federal em 2026, da seção eleitoral ao estado.
 
 **Mapa:** https://abreu77.github.io/mapa-eleitoral-pe/
 **Conclusões:** [`CONCLUSOES.md`](CONCLUSOES.md)
@@ -13,6 +13,8 @@ Projeto independente de Diego Abreu. Não é publicação do Governo de Pernambu
 - **Leitura:** % de Raquel Lyra; candidato mais votado; Raquel menos o bloco PSB (Danilo Cabral em 2022, João Campos em 2026); variação de Raquel entre 2022 e 2026; lado declarado pelos prefeitos em 2026 (Jamildo.com).
 - **Nível**, numa barra deslizante: seção, local de votação, zona, município, Região de Desenvolvimento, mesorregião e estado.
 - **Base:** votos totais ou votos válidos.
+- **Cargo:** governador ou deputado (estadual e federal, 2026). Para deputado, os votos são somados por bloco: bloco Raquel, bloco João e outros. Leituras: % do bloco Raquel, bloco mais votado, bloco Raquel menos bloco João e Raquel governadora menos o bloco dela para deputado. Lista dos eleitos com o lado de cada um.
+- **Deputados eleitos** (tela própria): onde cada um dos 74 eleitos teve votos, sozinho ou somado por partido ou federação, com a cor do lado na disputa para governador.
 - Tabela com os mesmos números e versão para celular.
 
 ## Perguntas da análise
@@ -30,6 +32,7 @@ Resumo: a mudança entre as eleições foi territorial, município a município,
 - **Comparação entre eleições:** seções casadas por zona + seção (20.404 nas duas eleições; 1.456 mudaram de local e ficam marcadas). Como turno, adversário e posição de Raquel mudam, a variação descreve e não mede ganho ou perda.
 - **Movimento de eleitorados:** regressão de Goodman com restrição por seção, abstenção como categoria, incerteza por reamostragem de municípios.
 - **Aliança dos prefeitos:** lista do Jamildo.com (estado em 06/10/2026), única fonte pública encontrada com classificação por município. Ressalvas no [`CONCLUSOES.md`](CONCLUSOES.md).
+- **Blocos de deputados:** o partido segue a coligação de governador registrada no TSE (Raquel: PSD, PODE, AVANTE, PSDB, Cidadania, União, PP; João: PSB, PT, PCdoB, PV, MDB, Republicanos, PDT, PRD, Solidariedade, DC). Ajuste individual só nos eleitos com apoio público a outro lado: estaduais pela lista do Jamildo.com (05/10/2026), federais por notícias, com a fonte de cada um no site. O voto de legenda fica com o partido. Script: `src/deputados.py`.
 - **Robustez da associação aliança × voto:** controles (voto de 2022, renda, região), erro agrupado por microrregião com wild cluster bootstrap, placebo com 2022 e descontinuidade em eleições municipais apertadas de 2024 (inconclusiva por falta de casos).
 - **Economia:** PNAD Contínua (estado), Censo 2022 (renda por município), Bolsa Família (MDS), Novo CAGED (emprego formal, out/2025 a ago/2026) e transferências do estado declaradas pelos municípios (SICONFI).
 
@@ -43,7 +46,8 @@ Resumo: a mudança entre as eleições foi territorial, município a município,
 | Bolsa Família | MDS, API MI Social |
 | Emprego formal | Novo CAGED, PDET/Ministério do Trabalho |
 | Transferências do estado a municípios | SICONFI, Tesouro Nacional |
-| Aliança dos prefeitos | [Jamildo.com](https://jamildo.com/) |
+| Aliança dos prefeitos e lado dos deputados estaduais eleitos | [Jamildo.com](https://jamildo.com/) |
+| Lado dos deputados federais eleitos | notícias citadas no site, por eleito |
 | Mapa base | © OpenStreetMap, OpenMapTiles, OpenFreeMap |
 
 ## Como reproduzir
@@ -60,7 +64,7 @@ estudos-dados/
 └── dados-caged/              gerado por src/coleta_caged.py
 ```
 
-Ordem: `limpeza.py` → `analise_p1.py` → `transferencia*.py` → `regressao_municipio.py` → `coleta_siconfi.py` → `placebo.py`, `robustez_cluster.py`, `descontinuidade_2024.py` → `bolsa_familia.py`, `coleta_caged.py`, `caged_voto.py` → `exporta_mapa.py`. A lista de alianças vem da planilha publicada que alimenta o mapa do Jamildo.com. O site mostra o lado de cada prefeito, com crédito; a planilha bruta não é redistribuída aqui.
+Ordem: `limpeza.py` → `analise_p1.py` → `transferencia*.py` → `regressao_municipio.py` → `coleta_siconfi.py` → `placebo.py`, `robustez_cluster.py`, `descontinuidade_2024.py` → `bolsa_familia.py`, `coleta_caged.py`, `caged_voto.py` → `deputados.py` → `exporta_mapa.py`. A lista de alianças vem da planilha publicada que alimenta o mapa do Jamildo.com. O site mostra o lado de cada prefeito, com crédito; a planilha bruta não é redistribuída aqui.
 
 Para ver o mapa localmente:
 
@@ -74,4 +78,4 @@ Identidade própria, inspirada no manual de marca do Governo de Pernambuco (azul
 
 ## Licença
 
-Código sob licença MIT ([`LICENSE`](LICENSE)). Os dados derivados em `docs/data/` vêm das fontes listadas acima e seguem os termos de cada uma (dados públicos do TSE, IBGE, Tesouro Nacional, MDS, Ministério do Trabalho e BDE/Condepe-Fidem; lado dos prefeitos com crédito ao Jamildo.com).
+Código sob licença MIT ([`LICENSE`](LICENSE)). Os dados derivados em `docs/data/` vêm das fontes listadas acima e seguem os termos de cada uma (dados públicos do TSE, IBGE, Tesouro Nacional, MDS, Ministério do Trabalho e BDE/Condepe-Fidem; lado dos prefeitos e dos deputados estaduais eleitos com crédito ao Jamildo.com).

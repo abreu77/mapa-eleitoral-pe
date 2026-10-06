@@ -1,5 +1,5 @@
-/* Mapa eleitoral de Pernambuco, governador 2022–2026.
-   Dados gerados por src/exporta_mapa.py em data/. Percentuais sobre votos totais. */
+/* Mapa eleitoral de Pernambuco, governador 2022–2026 e deputados 2026 por bloco.
+   Dados gerados por src/exporta_mapa.py em data/. Percentuais sobre votos totais ou válidos. */
 'use strict';
 
 const NIVEIS = ['secao', 'local', 'zona', 'municipio', 'rd', 'meso', 'estado'];
@@ -8,6 +8,11 @@ const ELEICAO_NOME = { '2022T1': '2022 · 1º turno', '2022T2': '2022 · 2º tur
 const ADV = { '2022T1': 'Danilo Cabral (PSB)', '2022T2': 'Marília Arraes', '2026T1': 'João Campos' };
 const CAT_NOME = { R: 'Raquel Lyra', J: 'João Campos', M: 'Marília Arraes', O: 'Outro candidato', E: 'Empate' };
 const CAT_ORDEM = { '2022T1': ['R', 'M', 'O', 'E'], '2022T2': ['R', 'M', 'E'], '2026T1': ['R', 'J', 'E'] };
+/* deputados: "eleição" DE2026 / DF2026, com blocos no lugar de candidatos */
+const CARGO_NOME = { gov: 'Governador', DE2026: 'Deputado estadual', DF2026: 'Deputado federal' };
+const BLOCO_NOME = { R: 'Bloco Raquel', J: 'Bloco João', O: 'Outros / sem lado', E: 'Empate' };
+const dep = () => estado.cargo !== 'gov';
+const elx = () => (dep() ? estado.cargo : estado.eleicao);   // chave dos dados: eleição de governador ou cargo
 
 /* escalas (classes fixas para comparar eleições com a mesma régua) */
 const ESC = {
@@ -17,12 +22,15 @@ const ESC = {
   dif: { limites: [-30, -15, -5, -2, 2, 5, 15, 30],
     claro: ['#a87400', '#d39a00', '#f0c24a', '#f7dd96', '#e9e9e6', '#d6cff0', '#ad9fdf', '#7a67c6', '#4a3aa7'],
     escuro: ['#e3a21a', '#b88316', '#8a6416', '#5a4619', '#383835', '#3e3666', '#55489a', '#7466c9', '#9f93ef'] },
+  gd: { limites: [-30, -15, -5, -2, 2, 5, 15, 30],
+    claro: ['#1f6b2a', '#3f9147', '#80bd84', '#c5e2c5', '#e9e9e6', '#d6cff0', '#ad9fdf', '#7a67c6', '#4a3aa7'],
+    escuro: ['#74c97b', '#4f9d56', '#356d3b', '#26432a', '#383835', '#3e3666', '#55489a', '#7466c9', '#9f93ef'] },
   var: { limites: [-20, -10, -5, -1, 1, 5, 10, 20],
     claro: ['#1f6b2a', '#3f9147', '#80bd84', '#c5e2c5', '#e9e9e6', '#d6cff0', '#ad9fdf', '#7a67c6', '#4a3aa7'],
     escuro: ['#74c97b', '#4f9d56', '#356d3b', '#26432a', '#383835', '#3e3666', '#55489a', '#7466c9', '#9f93ef'] },
 };
 
-const estado = { eleicao: '2026T1', leitura: 'pct', base: 'd2', denom: 't', nivel: 3, foco: null };
+const estado = { cargo: 'gov', eleicao: '2026T1', leitura: 'pct', base: 'd2', denom: 't', nivel: 3, foco: null, tabela: 'unidades' };
 const dados = { agregados: null, municipiosGeo: null, pontos: {}, poligonos: {} };
 const $ = (s) => document.querySelector(s);
 const fmtInt = new Intl.NumberFormat('pt-BR');
@@ -44,7 +52,7 @@ function classe(valor, esc) {
 /* nome de urna para os três principais; demais candidatos com o nome do TSE, preposições em minúscula */
 function nomeVencedor(v, vn) {
   if (v !== 'O') return CAT_NOME[v] || vn;
-  return String(vn).replace(/(De|Da|Do|Dos|Das|E)/g, (m) => m.toLowerCase());
+  return String(vn).replace(/\b(De|Da|Do|Dos|Das|E)\b/g, (m) => m.toLowerCase());
 }
 
 const LADO_NOME = { R: 'com Raquel Lyra', J: 'com João Campos', N: 'sem prefeito' };
@@ -55,21 +63,32 @@ function prefeitoHTML(cd) {
   return `<p class="prefeito"><i style="background:${corCat(m.alianca)}"></i>Prefeito ${m.prefeito}${m.partido ? ` (${m.partido})` : ''} · ${LADO_NOME[m.alianca]}</p>`;
 }
 
-/* registro de uma unidade: [total, raquel, adversário, vencedor, nome do vencedor] por eleição; d1, d2 = variação */
+/* candidato a deputado pelo número: "Nome (PARTIDO)" */
+const título = (x) => x.toLowerCase().replace(/(^|[\s(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase())
+  .replace(/ (De|Da|Do|Dos|Das|E) /g, (m) => m.toLowerCase()).replace(/\b(Pt|Pl|Psb|Psd)\b/g, (m) => m.toUpperCase());
+function candidato(el, nr) {
+  const c = dados.agregados?.candidatos?.[el]?.[nr];
+  return c ? `${título(c[0])} (${c[1]})` : nr ? nr : 'Empate';
+}
+
+/* registro de uma unidade: [total, raquel, adversário, vencedor, nome do vencedor, válidos] por eleição; d1, d2 = variação.
+   Deputados: [total, bloco Raquel, bloco João, bloco mais votado, nº do candidato mais votado, válidos, g, gv] */
 function valores(reg, el) {
   const r = reg && reg[el];
   if (!r) return null;
-  const [t, rq, a, v, vn, w] = r;
+  const [t, rq, a, v, vn, w, g, gv] = r;
   const válidos = estado.denom === 'w';
   const den = válidos ? w : t;   // base escolhida: votos totais (t) ou válidos (w)
-  return { t, w, n: den, rq, a, v, vn: nomeVencedor(v, vn), pr: den ? (rq / den) * 100 : null, pa: den ? (a / den) * 100 : null,
-    d1: válidos ? reg.d1v : reg.d1, d2: válidos ? reg.d2v : reg.d2 };
+  const ehDep = el in CARGO_NOME;
+  return { t, w, n: den, rq, a, v, vn: ehDep ? candidato(el, vn) : nomeVencedor(v, vn), pr: den ? (rq / den) * 100 : null, pa: den ? (a / den) * 100 : null,
+    d1: válidos ? reg.d1v : reg.d1, d2: válidos ? reg.d2v : reg.d2, g: válidos ? gv : g };
 }
 function valorLeitura(v) {
   if (!v) return null;
   if (estado.leitura === 'pct') return v.pr;
-  if (estado.leitura === 'dif') return estado.eleicao === '2022T2' ? null : v.pr - v.pa;
+  if (estado.leitura === 'dif') return !dep() && estado.eleicao === '2022T2' ? null : v.pr - v.pa;
   if (estado.leitura === 'var') return v[estado.base];
+  if (estado.leitura === 'gd') return v.g;
   return null;
 }
 function corDe(v) {
@@ -77,17 +96,22 @@ function corDe(v) {
   if (estado.leitura === 'venc') return corCat(v.v);
   return classe(valorLeitura(v), ESC[estado.leitura]);
 }
+/* nomes que mudam com o cargo */
+const nomeR = () => (dep() ? 'Bloco Raquel' : 'Raquel Lyra');
+const nomeA = () => (dep() ? 'Bloco João' : ADV[estado.eleicao]);
+const corA = () => corCat(dep() || estado.eleicao === '2026T1' ? 'J' : estado.eleicao === '2022T2' ? 'M' : 'O');
 
 /* ---------------------------------------------------------------- carga */
 async function json(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 async function pontos(nivel) {
-  if (!dados.pontos[nivel]) {
+  const arq = dep() ? `pontos_${nivel}_dep` : `pontos_${nivel}`;   // deputados em arquivo à parte, só quando pedidos
+  if (!dados.pontos[arq]) {
     $('#carregando').hidden = nivel !== 'secao';
-    dados.pontos[nivel] = await json(`data/pontos_${nivel}.json`);
+    dados.pontos[arq] = await json(`data/${arq}.json`);
     $('#carregando').hidden = true;
   }
-  return dados.pontos[nivel];
+  return dados.pontos[arq];
 }
 
 function poligonos(nivel) {
@@ -171,7 +195,7 @@ async function desenha() {
   if (['municipio', 'rd', 'meso', 'estado'].includes(nivel)) {
     const regs = ag[nivel];
     const fc = poligonos(nivel).map((f) => {
-      const v = valores(regs[f.properties.id], estado.eleicao);
+      const v = valores(regs[f.properties.id], elx());
       registroAtual[f.properties.id] = regs[f.properties.id];
       const corPref = estado.leitura === 'pref' ? corCat(ag.municipios_meta[f.properties.id].alianca === 'N' ? 'X' : ag.municipios_meta[f.properties.id].alianca) : null;
       titulos[f.properties.id] = [f.properties.nome, nivel === 'municipio' ? ag.municipios_meta[f.properties.id].rd : NIVEL_NOME[estado.nivel]];
@@ -183,26 +207,28 @@ async function desenha() {
     mapa.getSource('pontos').setData({ type: 'FeatureCollection', features: [] });
     mapa.getSource('contorno').setData({ type: 'FeatureCollection', features: [] });
   } else {
+    const el = elx();
     const p = await pontos(nivel);
-    if (NIVEIS[estado.nivel] !== nivel) return;   // o usuário mudou de nível durante a carga
-    const bloco = p[estado.eleicao];
+    if (NIVEIS[estado.nivel] !== nivel || elx() !== el) return;   // o usuário mudou de nível ou cargo durante a carga
+    const bloco = p[el];
     const meta = ag.municipios_meta;
     const base = nivel === 'secao' ? 2.2 : nivel === 'local' ? 0.16 : 0.035;
     const feats = bloco.linhas.map((l) => {
-      const [x, y, iNome, iSub, cd, id, t, rq, a, v, iVn, d1, d2, w, d1v, d2v] = l;
-      const reg = { [estado.eleicao]: [t, rq, a, v, iVn >= 0 ? bloco.textos[iVn] : CAT_NOME[v], w], d1, d2, d1v, d2v };
+      const [x, y, iNome, iSub, cd, id, t, rq, a, v, iVn, d1, d2, w, d1v, d2v, g, gv] = l;
+      const vn = dep() ? iVn : iVn >= 0 ? bloco.textos[iVn] : CAT_NOME[v];   // deputados: número do mais votado
+      const reg = { [el]: [t, rq, a, v, vn, w, g, gv], d1, d2, d1v, d2v };
       registroAtual[id] = reg;
       const titulo = nivel === 'secao' ? `Seção ${id.split('-')[1]} · Zona ${id.split('-')[0]}` : bloco.textos[iNome];
       titulos[id] = [titulo, `${bloco.textos[iSub]}${meta[cd] ? ' · ' + meta[cd].nome : ''}`];
       const s = nivel === 'secao' ? base : base * Math.sqrt(t);
-      return { type: 'Feature', geometry: { type: 'Point', coordinates: [x, y] }, properties: { id, c: corDe(valores(reg, estado.eleicao)), s } };
+      return { type: 'Feature', geometry: { type: 'Point', coordinates: [x, y] }, properties: { id, c: corDe(valores(reg, el)), s } };
     });
     feats.sort((f, g) => g.properties.s - f.properties.s);   // pontos grandes por baixo
     mapa.getSource('pontos').setData({ type: 'FeatureCollection', features: feats });
     mapa.getSource('area').setData({ type: 'FeatureCollection', features: [] });
     mapa.getSource('contorno').setData({ type: 'FeatureCollection', features: poligonos('municipio') });
   }
-  legenda(); atualizaFoco(); destacaFoco();
+  legenda(); atualizaFoco(); destacaFoco(); eleitos();
   if (!$('#tabela-area').hidden) tabela();
 }
 
@@ -210,8 +236,12 @@ async function desenha() {
 function legenda() {
   const L = estado.leitura, el = estado.eleicao;
   const box = $('#legenda');
-  const titulo = { pref: 'Prefeitos na disputa de 2026', pct: `% de Raquel Lyra · ${ELEICAO_NOME[el]}`, venc: `Mais votado · ${ELEICAO_NOME[el]}`,
-    dif: `Raquel menos bloco PSB · ${ELEICAO_NOME[el]}`, var: `Raquel em 2026 menos ${estado.base === 'd2' ? '2022 · 2º turno' : '2022 · 1º turno'}` }[L];
+  const cg = CARGO_NOME[estado.cargo];
+  const titulo = dep()
+    ? { pref: 'Prefeitos na disputa de 2026', pct: `% do bloco Raquel · ${cg}`, venc: `Bloco mais votado · ${cg}`,
+      dif: `Bloco Raquel menos bloco João · ${cg}`, gd: `Raquel governadora menos bloco Raquel · ${cg}` }[L]
+    : { pref: 'Prefeitos na disputa de 2026', pct: `% de Raquel Lyra · ${ELEICAO_NOME[el]}`, venc: `Mais votado · ${ELEICAO_NOME[el]}`,
+      dif: `Raquel menos bloco PSB · ${ELEICAO_NOME[el]}`, var: `Raquel em 2026 menos ${estado.base === 'd2' ? '2022 · 2º turno' : '2022 · 1º turno'}` }[L];
   $('#legenda-titulo').textContent = titulo + (L === 'venc' ? '' : estado.denom === 'w' ? ' · válidos' : ' · totais');
   if (L === 'pref') {
     const n = Object.values(dados.agregados.municipios_meta).reduce((a, m) => (a[m.alianca] = (a[m.alianca] || 0) + 1, a), {});
@@ -224,7 +254,9 @@ function legenda() {
     return;
   }
   if (L === 'venc') {
-    box.innerHTML = `<div class="cats">${CAT_ORDEM[el].map((c) => `<div class="cat"><i style="background:${corCat(c)}"></i>${CAT_NOME[c]}</div>`).join('')}</div>`;
+    box.innerHTML = dep()
+      ? `<div class="cats">${['R', 'J', 'O', 'E'].map((c) => `<div class="cat"><i style="background:${corCat(c)}"></i>${BLOCO_NOME[c]}</div>`).join('')}</div>`
+      : `<div class="cats">${CAT_ORDEM[el].map((c) => `<div class="cat"><i style="background:${corCat(c)}"></i>${CAT_NOME[c]}</div>`).join('')}</div>`;
     return;
   }
   const esc = ESC[L]; const cores = escuro() ? esc.escuro : esc.claro;
@@ -236,7 +268,9 @@ function legenda() {
     if (i === cores.length - 1) return sinal(esc.limites[i - 1]) + '+';
     return sinal(esc.limites[i - 1]);
   });
-  const pontas = { pct: ['menos Raquel', 'mais Raquel (%)'], dif: [`${ADV[el].replace(' (PSB)', '')} à frente`, 'Raquel à frente (p.p.)'], var: ['Raquel caiu', 'Raquel subiu (p.p.)'] }[L];
+  const pontas = dep()
+    ? { pct: ['menos bloco Raquel', 'mais bloco Raquel (%)'], dif: ['Bloco João à frente', 'Bloco Raquel à frente (p.p.)'], gd: ['Bloco à frente de Raquel', 'Raquel à frente do bloco (p.p.)'] }[L]
+    : { pct: ['menos Raquel', 'mais Raquel (%)'], dif: [`${ADV[el].replace(' (PSB)', '')} à frente`, 'Raquel à frente (p.p.)'], var: ['Raquel caiu', 'Raquel subiu (p.p.)'] }[L];
   box.innerHTML = `<div class="escala">${cores.map((c) => `<span style="background:${c}"></span>`).join('')}</div>
     <div class="escala escala-rotulos">${rotulos.map((r) => `<em>${r}</em>`).join('')}</div>
     <div class="escala-pontas"><span>${pontas[0]}</span><span>${pontas[1]}</span></div>`;
@@ -247,14 +281,15 @@ function linhaPop(nome, corBola, valor) {
 }
 function mostraPopup(f, lngLat) {
   const id = f.properties.id;
-  const v = valores(registroAtual[id], estado.eleicao);
+  const v = valores(registroAtual[id], elx());
   const [t, sub] = titulos[id] || [id, ''];
   let corpo = '';
   if (v) {
-    corpo += linhaPop('Raquel Lyra', corCat('R'), fmtPct(v.pr));
-    corpo += linhaPop(ADV[estado.eleicao], corCat(estado.eleicao === '2026T1' ? 'J' : estado.eleicao === '2022T2' ? 'M' : 'O'), fmtPct(v.pa));
+    corpo += linhaPop(nomeR(), corCat('R'), fmtPct(v.pr));
+    corpo += linhaPop(nomeA(), corA(), fmtPct(v.pa));
     if (estado.leitura === 'var') corpo += linhaPop('Variação de Raquel', '', fmtPp(v[estado.base]));
-    corpo += linhaPop('Mais votado', '', v.vn);
+    if (dep()) corpo += linhaPop('Raquel governadora − bloco', '', fmtPp(v.g));
+    corpo += linhaPop(dep() ? 'Candidato mais votado' : 'Mais votado', '', v.vn);
     corpo += linhaPop(estado.denom === 'w' ? 'Votos válidos' : 'Votos totais', '', fmtInt.format(v.n));
   } else corpo = '<p class="pop-sub">Sem dado nesta eleição.</p>';
   const pref = NIVEIS[estado.nivel] === 'municipio' ? prefeitoHTML(id) : '';
@@ -262,27 +297,28 @@ function mostraPopup(f, lngLat) {
 }
 
 function atualizaFoco() {
-  const el = estado.eleicao;
+  const el = elx();
   const reg = estado.foco && registroAtual[estado.foco] ? registroAtual[estado.foco] : dados.agregados.estado.Pernambuco;
   const nome = estado.foco && titulos[estado.foco] ? titulos[estado.foco][0] : 'Pernambuco';
   const v = valores(reg, el);
   $('#foco-rotulo').textContent = nome;
   if (!v) { $('#foco').innerHTML = '<p class="meta">Sem dado nesta eleição.</p>'; return; }
-  const outros = Math.max(0, 100 - v.pr - v.pa);   // outros candidatos (+ brancos e nulos, na base total)
-  const corAdv = corCat(el === '2026T1' ? 'J' : el === '2022T2' ? 'M' : 'O');
+  const outros = Math.max(0, 100 - v.pr - v.pa);   // outros candidatos ou blocos (+ brancos e nulos, na base total)
   const extra = estado.leitura === 'var'
     ? `<div class="num"><b>${fmtPp(v[estado.base])}</b><span>Raquel em 2026 menos ${estado.base === 'd2' ? '2022 · 2º turno' : '2022 · 1º turno'}</span></div>`
+    : estado.leitura === 'gd'
+    ? `<div class="num"><b>${fmtPp(v.g)}</b><span>Raquel governadora menos bloco Raquel</span></div>`
     : `<div class="num"><b>${fmtInt.format(v.n)}</b><span>${estado.denom === 'w' ? 'votos válidos' : 'votos totais'}</span></div>`;
   $('#foco').innerHTML = `
     <div class="numeros">
-      <div class="num"><b>${fmtPct(v.pr)}</b><span>Raquel Lyra</span></div>
-      <div class="num"><b>${fmtPct(v.pa)}</b><span>${ADV[el]}</span></div>
+      <div class="num"><b>${fmtPct(v.pr)}</b><span>${nomeR()}</span></div>
+      <div class="num"><b>${fmtPct(v.pa)}</b><span>${nomeA()}</span></div>
       ${extra}
-      <div class="num"><b style="font-size:17px">${v.vn}</b><span>mais votado</span></div>
+      <div class="num"><b style="font-size:17px">${v.vn}</b><span>${dep() ? 'candidato mais votado' : 'mais votado'}</span></div>
     </div>
-    <div class="barra" aria-hidden="true"><i style="width:${v.pr}%;background:${corCat('R')}"></i><i style="width:${v.pa}%;background:${corAdv}"></i><i style="width:${outros}%;background:${cor('--empate')}"></i></div>
+    <div class="barra" aria-hidden="true"><i style="width:${v.pr}%;background:${corCat('R')}"></i><i style="width:${v.pa}%;background:${corA()}"></i><i style="width:${outros}%;background:${cor('--empate')}"></i></div>
     ${estado.foco && NIVEIS[estado.nivel] === 'municipio' ? prefeitoHTML(estado.foco) : ''}
-    <p class="meta">${ELEICAO_NOME[el]} · percentuais sobre ${estado.denom === 'w' ? 'votos válidos' : 'votos totais'}${estado.foco ? ' · <button class="botao-texto" id="limpa-foco">voltar ao estado</button>' : ''}</p>`;
+    <p class="meta">${dep() ? CARGO_NOME[el] + ' · 2026' : ELEICAO_NOME[el]} · percentuais sobre ${estado.denom === 'w' ? 'votos válidos' : 'votos totais'}${estado.foco ? ' · <button class="botao-texto" id="limpa-foco">voltar ao estado</button>' : ''}</p>`;
   const b = $('#limpa-foco');
   if (b) b.onclick = () => { estado.foco = null; atualizaFoco(); destacaFoco(); };
 }
@@ -290,9 +326,41 @@ function destacaFoco() {
   mapa.setFilter('foco', ['==', ['get', 'id'], estado.foco && NIVEIS[estado.nivel] !== 'secao' ? String(estado.foco) : '']);
 }
 
+/* ---------------------------------------------------------------- eleitos (deputados) */
+const listaEleitos = () => Object.entries(dados.agregados.candidatos[estado.cargo])
+  .filter(([, c]) => c[3]).map(([nr, c]) => ({ nr, nome: título(c[0]), partido: c[1], bloco: c[2], votos: c[4], fonte: c[5] }));
+function eleitos() {
+  $('#eleitos-bloco').hidden = !dep();
+  if (!dep()) return;
+  const l = listaEleitos();
+  const n = l.reduce((a, e) => (a[e.bloco] = (a[e.bloco] || 0) + 1, a), {});
+  $('#eleitos-titulo').textContent = `Eleitos · ${CARGO_NOME[estado.cargo]} · ${l.length} vagas`;
+  $('#eleitos').innerHTML = `<div class="cats">${['R', 'J', 'O'].map((b) => `<div class="cat"><i style="background:${corCat(b)}"></i>${BLOCO_NOME[b]} · ${n[b] || 0}</div>`).join('')}</div>
+    <p class="fonte">Lado pela coligação de governador; ${l.filter((e) => e.fonte).length} eleitos com ajuste individual (fonte na lista).</p>`;
+}
+/* lado do eleito: "coligação" ou "ajuste" com link da fonte; o texto completo fica na dica */
+function linkFonte(f) {
+  if (!f) return 'coligação';
+  const url = (f.match(/https?:\/\/[^\s);]+/) || [''])[0];
+  const texto = f.replace(/:?\s*https?:\/\/[^\s);]+/, '').replace(/"/g, '&quot;');
+  return `<span title="${texto}">ajuste${url ? ` · <a href="${url}" target="_blank" rel="noopener">fonte</a>` : ''}</span>`;
+}
+function tabelaEleitos() {
+  const l = listaEleitos();
+  const col = ordem.col in l[0] ? ordem.col : 'votos';
+  l.sort((a, b) => (ordem.desc ? -1 : 1) * (a[col] > b[col] ? 1 : a[col] < b[col] ? -1 : 0));
+  $('#tabela-titulo').textContent = `Eleitos · ${CARGO_NOME[estado.cargo]} · 2026`;
+  $('#tabela').innerHTML = `<thead><tr><th data-c="nome">Eleito</th><th data-c="partido">Partido</th><th data-c="bloco">Bloco</th><th data-c="votos">Votos</th><th data-c="fonte">Lado</th></tr></thead>
+    <tbody>${l.map((e) => `<tr><td><a href="deputado.html#${estado.cargo}-${e.nr}" title="Ver onde ${e.nome} teve votos">${e.nome}</a></td><td>${e.partido}</td><td><i class="bola" style="background:${corCat(e.bloco)}"></i>${BLOCO_NOME[e.bloco]}</td><td>${fmtInt.format(e.votos)}</td><td>${linkFonte(e.fonte)}</td></tr>`).join('')}</tbody>`;
+  $('#tabela').querySelectorAll('th').forEach((th) => th.onclick = () => {
+    ordem = { col: th.dataset.c, desc: ordem.col === th.dataset.c ? !ordem.desc : true }; tabela();
+  });
+}
+
 /* ---------------------------------------------------------------- tabela (mesmos números, acessível) */
 let ordem = { col: 'n', desc: true };
 function tabela() {
+  if (estado.tabela === 'eleitos' && dep()) return tabelaEleitos();
   const nivel = NIVEIS[estado.nivel];
   let ids = Object.keys(registroAtual);
   if (['secao', 'local'].includes(nivel)) {   // nos níveis finos, só o que está na tela
@@ -301,15 +369,15 @@ function tabela() {
     ids = ids.filter((i) => visiveis.has(i));
   }
   const meta = dados.agregados.municipios_meta;
-  const linhas = ids.map((id) => ({ id, nome: (titulos[id] || [id])[0], ...valores(registroAtual[id], estado.eleicao),
+  const linhas = ids.map((id) => ({ id, nome: (titulos[id] || [id])[0], ...valores(registroAtual[id], elx()),
     pref: nivel === 'municipio' ? ({ R: 'Raquel', J: 'João', N: '—' }[meta[id]?.alianca] || '') : null })).filter((r) => r.t);
   const col = ordem.col;
   linhas.sort((a, b) => (ordem.desc ? -1 : 1) * ((a[col] ?? -1e9) > (b[col] ?? -1e9) ? 1 : (a[col] ?? -1e9) < (b[col] ?? -1e9) ? -1 : 0));
   const lim = linhas.slice(0, 400);
-  const colVar = estado.leitura === 'var';
-  $('#tabela-titulo').textContent = `${NIVEL_NOME[estado.nivel]} · ${ELEICAO_NOME[estado.eleicao]}${lim.length < linhas.length ? ` · ${lim.length} de ${linhas.length}` : ''}`;
-  $('#tabela').innerHTML = `<thead><tr><th data-c="nome">Unidade</th><th data-c="n">${estado.denom === 'w' ? 'Válidos' : 'Votos'}</th><th data-c="pr">Raquel</th><th data-c="pa">${ADV[estado.eleicao].split(' ')[0]}</th>${colVar ? `<th data-c="${estado.base}">Variação</th>` : '<th data-c="vn">Mais votado</th>'}${nivel === 'municipio' ? '<th data-c="pref">Prefeito com</th>' : ''}</tr></thead>
-    <tbody>${lim.map((r) => `<tr><td>${r.nome}</td><td>${fmtInt.format(r.n)}</td><td>${fmtPct(r.pr)}</td><td>${fmtPct(r.pa)}</td><td>${colVar ? fmtPp(r[estado.base]) : r.vn}</td>${nivel === 'municipio' ? `<td>${r.pref}</td>` : ''}</tr>`).join('')}</tbody>`;
+  const colVar = estado.leitura === 'var' ? estado.base : estado.leitura === 'gd' ? 'g' : null;
+  $('#tabela-titulo').textContent = `${NIVEL_NOME[estado.nivel]} · ${dep() ? CARGO_NOME[estado.cargo] + ' · 2026' : ELEICAO_NOME[estado.eleicao]}${lim.length < linhas.length ? ` · ${lim.length} de ${linhas.length}` : ''}`;
+  $('#tabela').innerHTML = `<thead><tr><th data-c="nome">Unidade</th><th data-c="n">${estado.denom === 'w' ? 'Válidos' : 'Votos'}</th><th data-c="pr">${dep() ? 'Bloco Raquel' : 'Raquel'}</th><th data-c="pa">${dep() ? 'Bloco João' : ADV[estado.eleicao].split(' ')[0]}</th>${colVar ? `<th data-c="${colVar}">${colVar === 'g' ? 'Governadora − bloco' : 'Variação'}</th>` : '<th data-c="vn">Mais votado</th>'}${nivel === 'municipio' ? '<th data-c="pref">Prefeito com</th>' : ''}</tr></thead>
+    <tbody>${lim.map((r) => `<tr><td>${r.nome}</td><td>${fmtInt.format(r.n)}</td><td>${fmtPct(r.pr)}</td><td>${fmtPct(r.pa)}</td><td>${colVar ? fmtPp(r[colVar]) : r.vn}</td>${nivel === 'municipio' ? `<td>${r.pref}</td>` : ''}</tr>`).join('')}</tbody>`;
   $('#tabela').querySelectorAll('th').forEach((th) => th.onclick = () => {
     ordem = { col: th.dataset.c, desc: ordem.col === th.dataset.c ? !ordem.desc : true }; tabela();
   });
@@ -319,18 +387,31 @@ function tabela() {
 function marca(grupo, valor, attr) {
   document.querySelectorAll(`${grupo} button`).forEach((b) => b.setAttribute(attr, String(b.dataset.v === valor)));
 }
+const ABA_NOME = { gov: { pct: '% de Raquel', venc: 'Vencedor', dif: 'Raquel × bloco PSB' },
+  dep: { pct: '% do bloco Raquel', venc: 'Bloco mais votado', dif: 'Bloco Raquel × bloco João' } };
 function sincroniza() {
-  marca('#eleicao', estado.eleicao, 'aria-checked');
+  marca('#cargo', estado.cargo, 'aria-checked');
+  document.querySelectorAll('#leitura button').forEach((b) => {
+    const nomes = ABA_NOME[dep() ? 'dep' : 'gov'];
+    if (nomes[b.dataset.v]) b.textContent = nomes[b.dataset.v];
+    if (b.dataset.v === 'var') b.hidden = dep();
+    if (b.dataset.v === 'gd') b.hidden = !dep();
+  });
+  marca('#eleicao', dep() ? '2026T1' : estado.eleicao, 'aria-checked');
   marca('#leitura', estado.leitura, 'aria-selected');
   marca('#var-base', estado.base, 'aria-checked');
   marca('#base-pct', estado.denom, 'aria-checked');
   $('#var-base').hidden = estado.leitura !== 'var';
   document.querySelectorAll('#eleicao button').forEach((b) => {
-    b.disabled = estado.leitura === 'var' ? b.dataset.v !== '2026T1' : estado.leitura === 'dif' && b.dataset.v === '2022T2';
+    b.disabled = dep() || estado.leitura === 'var' ? b.dataset.v !== '2026T1' : estado.leitura === 'dif' && b.dataset.v === '2022T2';
   });
   const aviso = $('#aviso-leitura');
-  aviso.hidden = !['var', 'dif', 'pref'].includes(estado.leitura);
-  aviso.textContent = estado.leitura === 'pref'
+  aviso.hidden = !dep() && !['var', 'dif', 'pref'].includes(estado.leitura);
+  aviso.textContent = dep() && estado.leitura !== 'pref'
+    ? (estado.leitura === 'gd'
+      ? 'Compara o voto em Raquel para governadora com o voto nos candidatos a deputado do bloco dela. Roxo: Raquel teve mais voto que o bloco. Verde: o bloco teve mais voto que ela. Exemplo: +5 p.p. quer dizer que, de cada 100 votos, Raquel teve 5 a mais do que os deputados do bloco somados. É saldo do lugar, não mostra o voto de cada eleitor.'
+      : 'Bloco pelo partido na coligação de governador (TSE), com ajuste individual só nos eleitos de lado público diferente. Voto de legenda fica com o partido.')
+    : estado.leitura === 'pref'
     ? 'Lado declarado pelos prefeitos em 2026 (lista do Jamildo.com). Mostra só município; a eleição escolhida vale para a dica e o painel. Prefeito aliado e voto andam juntos, mas isso não mostra causa.'
     : estado.leitura === 'var'
     ? 'Variação só para 2026, onde a unidade existe nas duas eleições. As eleições são de natureza diferente (turno, posição de Raquel, adversário), então a variação descreve, não mede ganho ou perda.'
@@ -340,6 +421,18 @@ function sincroniza() {
   $('#nivel-nome').textContent = NIVEL_NOME[estado.nivel];
 }
 function liga() {
+  $('#cargo').addEventListener('click', (e) => {
+    const v = e.target.closest('button')?.dataset.v; if (!v) return;
+    estado.cargo = v;
+    if (dep() && estado.leitura === 'var') estado.leitura = 'pct';
+    if (!dep() && estado.leitura === 'gd') estado.leitura = 'pct';
+    if (!dep()) estado.tabela = 'unidades';
+    sincroniza(); desenha();
+  });
+  $('#ver-eleitos').onclick = () => {
+    estado.tabela = 'eleitos'; ordem = { col: 'votos', desc: true };
+    $('#tabela-area').hidden = false; $('#ver-tabela').setAttribute('aria-expanded', 'true'); tabela();
+  };
   $('#eleicao').addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.v; if (!v || e.target.disabled) return; estado.eleicao = v; sincroniza(); desenha(); });
   $('#leitura').addEventListener('click', (e) => {
     const v = e.target.closest('button')?.dataset.v; if (!v) return;
@@ -354,7 +447,12 @@ function liga() {
   $('#nivel').addEventListener('input', (e) => { estado.nivel = +e.target.value; estado.foco = null; sincroniza(); desenha(); });
   $('#ver-noronha').onclick = () => mapa.flyTo({ center: [-32.42, -3.855], zoom: 11.5 });
   $('#ver-estado').onclick = () => mapa.fitBounds([[-41.4, -9.55], [-34.75, -7.25]], { padding: 24 });
-  $('#ver-tabela').onclick = () => { const a = $('#tabela-area'); a.hidden = !a.hidden; $('#ver-tabela').setAttribute('aria-expanded', String(!a.hidden)); if (!a.hidden) tabela(); };
+  $('#ver-tabela').onclick = () => {
+    const a = $('#tabela-area');
+    a.hidden = !(a.hidden || estado.tabela === 'eleitos');   // vinda da lista de eleitos: troca para unidades
+    estado.tabela = 'unidades'; ordem = { col: 'n', desc: true };
+    $('#ver-tabela').setAttribute('aria-expanded', String(!a.hidden)); if (!a.hidden) tabela();
+  };
   $('#fechar-tabela').onclick = () => { $('#tabela-area').hidden = true; $('#ver-tabela').setAttribute('aria-expanded', 'false'); };
   mapa.on('moveend', () => { if (!$('#tabela-area').hidden && ['secao', 'local'].includes(NIVEIS[estado.nivel])) tabela(); });
   const meta = dados.agregados.municipios_meta;
@@ -372,7 +470,7 @@ function liga() {
 /* ---------------------------------------------------------------- início */
 const carga = Promise.all([json('data/agregados.json'), json('data/municipios.geojson')]);
 // o painel não espera o mapa de fundo: mostra os números do estado assim que os dados chegam
-carga.then(([ag, geo]) => { dados.agregados = ag; dados.municipiosGeo = geo; sincroniza(); legenda(); atualizaFoco(); })
+carga.then(([ag, geo]) => { dados.agregados = ag; dados.municipiosGeo = geo; sincroniza(); legenda(); atualizaFoco(); eleitos(); })
   .catch((err) => {
     $('#foco').innerHTML = `<p class="meta">Não foi possível carregar os dados (${err.message}). Abra o site por um servidor (GitHub Pages ou <code>python -m http.server</code>), não direto do arquivo.</p>`;
   });

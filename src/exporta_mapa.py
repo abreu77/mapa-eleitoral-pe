@@ -5,6 +5,11 @@ Eleições: 2022 T1, 2022 T2, 2026 T1 (governador). Base dos percentuais: votos 
 Por unidade e eleição: total, Raquel, adversário (2022 T1: Danilo/PSB; 2022 T2: Marília;
 2026: João), vencedor (código), e a variação de Raquel em 2026 contra 2022 T1 e T2
 onde a unidade existe nas duas eleições.
+Deputados estaduais (DE2026) e federais (DF2026): mesmo registro, com o bloco Raquel no lugar de
+Raquel, o bloco João no lugar do adversário, o bloco mais votado como vencedor e o número do
+candidato mais votado no lugar do nome; mais a diferença Raquel governadora menos bloco Raquel
+(g: votos totais; gv: válidos). Blocos em src/deputados.py. Pontos em pontos_<nível>_dep.json.
+Deputados eleitos (página deputado.html): votos de cada eleito por unidade em deputados/<cargo>_<número>.json.
 Seções de voto em trânsito ficam fora dos pontos (não representam o bairro) e dentro dos agregados.
 Rodar da raiz do projeto:  python src/exporta_mapa.py
 """
@@ -24,6 +29,7 @@ RAQUEL = {'2022T1': '45', '2022T2': '45', '2026T1': '55'}
 ADVERSARIO = {'2022T1': '40', '2022T2': '77', '2026T1': '40'}
 # vencedor em categorias com no máximo 3 cores no mapa (regra de cor para mapas)
 CAT = {'2022T1': {'45': 'R', '77': 'M'}, '2022T2': {'45': 'R', '77': 'M'}, '2026T1': {'55': 'R', '40': 'J'}}
+DEP = {'DE2026': 'estadual', 'DF2026': 'federal'}
 
 sec = pd.read_csv(L / 'secoes.csv', dtype=TIPOS)
 lon = pd.read_csv(L / 'votos_secao_longo.csv', dtype=TIPOS)
@@ -39,6 +45,22 @@ lon = lon.merge(mun[['cd_tse', 'nm_municipio', 'rd', 'mesorregiao']], left_on='c
 lon['estado'] = 'Pernambuco'
 lon['local_id'] = lon.nr_zona + '-' + lon.nr_local_votacao
 lon['secao_id'] = lon.nr_zona + '-' + lon.nr_secao
+
+
+
+def chaves(d):
+    """Colunas de agregação (seção, local, RD, mesorregião, estado) e marca de trânsito, como em lon."""
+    d = d.merge(info.loc[info.eleicao == '2026T1', ['nr_zona', 'nr_secao', 'transito']], on=['nr_zona', 'nr_secao'], how='left')
+    d = d.merge(mun[['cd_tse', 'rd', 'mesorregiao']], left_on='cd_municipio', right_on='cd_tse')
+    d['estado'] = 'Pernambuco'
+    d['local_id'] = d.nr_zona + '-' + d.nr_local_votacao
+    d['secao_id'] = d.nr_zona + '-' + d.nr_secao
+    return d
+
+
+dsec = chaves(pd.read_csv(L / 'deputados_secao.csv', dtype=TIPOS))
+dcan = chaves(pd.read_csv(L / 'deputados_candidato_secao.csv', dtype=TIPOS))
+dcand = pd.read_csv(L / 'deputados_candidatos.csv', dtype={'nr_candidato': str})
 
 NIVEIS = {'secao': 'secao_id', 'local': 'local_id', 'zona': 'nr_zona', 'municipio': 'cd_municipio',
           'rd': 'rd', 'meso': 'mesorregiao', 'estado': 'estado'}
@@ -59,6 +81,23 @@ def metricas(nivel, chave):
         df = pd.DataFrame({'t': tot, 'w': p[cands].sum(axis=1), 'r': p[RAQUEL[el]], 'a': p[ADVERSARIO[el]], 'v': venc,
                            'vn': top.map(lambda c: nomes.get((el, c), c)).where(~empate, 'Empate')})
         out[el] = df
+    gov = out['2026T1']
+    for el, cargo in DEP.items():
+        s, c = dsec[dsec.cargo == cargo], dcan[dcan.cargo == cargo]
+        if nivel in ('secao', 'local'):
+            s, c = s[~s.transito.fillna(False).astype(bool)], c[~c.transito.fillna(False).astype(bool)]
+        g = s.groupby(chave)[['R', 'J', 'O', 'branco', 'nulo', 'validos']].sum()
+        b = g[['R', 'J', 'O']]
+        empate = b.eq(b.max(axis=1), axis=0).sum(axis=1) > 1
+        cc = c.groupby([chave, 'nr_votavel']).qt_votos.sum().reset_index()
+        mx = cc.groupby(chave).qt_votos.transform('max')
+        topo = cc[cc.qt_votos == mx].groupby(chave).nr_votavel.agg(lambda x: x.iat[0] if len(x) == 1 else '')  # '' = empate
+        df = pd.DataFrame({'t': g[['R', 'J', 'O', 'branco', 'nulo']].sum(axis=1), 'w': g.validos, 'r': g.R, 'a': g.J,
+                           'v': b.idxmax(axis=1).where(~empate, 'E'), 'vn': topo.reindex(g.index).fillna('')})
+        gv = gov.reindex(df.index)
+        df['g'] = gv.r / gv.t * 100 - df.r / df.t * 100                          # Raquel governadora menos bloco Raquel
+        df['gv'] = gv.r / gv.w * 100 - df.r / df.w.where(df.w > 0) * 100
+        out[el] = df
     return out
 
 
@@ -68,12 +107,13 @@ def arred(x, n=2):
 
 def registros(nivel, chave):
     m = metricas(nivel, chave)
-    pct = {el: (d.r / d.t * 100) for el, d in m.items()}                       # base: votos totais
-    pctv = {el: (d.r / d.w.where(d.w > 0) * 100) for el, d in m.items()}       # base: votos válidos
+    pct = {el: (m[el].r / m[el].t * 100) for el in ELEICOES}                       # base: votos totais
+    pctv = {el: (m[el].r / m[el].w.where(m[el].w > 0) * 100) for el in ELEICOES}   # base: votos válidos
     linhas = {}
     for el, d in m.items():
         for k, r in d.iterrows():
-            linhas.setdefault(k, {})[el] = [int(r.t), int(r.r), int(r.a), r.v, r.vn, int(r.w)]
+            linhas.setdefault(k, {})[el] = [int(r.t), int(r.r), int(r.a), r.v, r.vn, int(r.w)] + \
+                ([arred(r.g), arred(r.gv)] if el in DEP else [])
     for k, l in linhas.items():
         for sufixo, base in (('', pct), ('v', pctv)):
             p26 = base['2026T1'].get(k)
@@ -94,18 +134,26 @@ mun_meta = {r.cd_tse: {'nome': r.nm_municipio, 'ibge': r.cd_ibge, 'rd': r.rd, 'm
                        'prefeito': r.prefeito if isinstance(r.prefeito, str) else None,
                        'partido': r.partido_prefeito if isinstance(r.partido_prefeito, str) else None}
             for r in mun.itertuples()}
+# candidatos a deputado: número -> [nome de urna, partido, bloco, eleito, votos, fonte do ajuste de bloco,
+#                                   federação (nome do TSE ou None), bloco do partido na coligação de governador]
+cands = {el: {r.nr_candidato: [r.nome, r.partido, r.bloco, int(r.eleito), int(r.votos),
+                               r.fonte_ajuste if isinstance(r.fonte_ajuste, str) else None,
+                               r.nome_federacao if isinstance(r.nome_federacao, str) else None, r.bloco_coligacao]
+              for r in dcand[dcand.cargo == cargo].itertuples()} for el, cargo in DEP.items()}
 (OUT / 'agregados.json').write_text(json.dumps({'municipio': pol['municipio'], 'rd': pol['rd'], 'meso': pol['meso'],
-                                                'estado': pol['estado'], 'municipios_meta': mun_meta},
+                                                'estado': pol['estado'], 'municipios_meta': mun_meta,
+                                                'candidatos': cands},
                                                ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 
 # ---------------------------------------------------------------- pontos (seção, local, zona) por eleição
 pos = info[~info.transito.fillna(False).astype(bool)].dropna(subset=['lat'])
 pontos = {}
+ordem = {}   # nível -> eleição -> ids na ordem das linhas (os arquivos dos eleitos seguem essa ordem)
 for nivel in ('secao', 'local', 'zona'):
     reg = registros(nivel, NIVEIS[nivel])
     por_el = {}
-    for el in ELEICOES:
-        p = pos[pos.eleicao == el].copy()
+    for el in ELEICOES + list(DEP):
+        p = pos[pos.eleicao == (el if el in ELEICOES else '2026T1')].copy()
         p['local_id'] = p.nr_zona + '-' + p.nr_local_votacao
         p['secao_id'] = p.nr_zona + '-' + p.nr_secao
         if nivel == 'secao':
@@ -142,15 +190,43 @@ for nivel in ('secao', 'local', 'zona'):
             r = reg.get(k, {})
             if el not in r:
                 continue
+            if el in DEP:   # mesma posição dos campos; no lugar do nome, o número do candidato mais votado
+                t_, r_, a_, v_, vn_, w_, g_, gv_ = r[el]
+                linhas.append([round(x, 5), round(y, 5), ref(nome), ref(sub), cd, k, t_, r_, a_, v_,
+                               vn_, None, None, w_, None, None, g_, gv_])
+                continue
             t_, r_, a_, v_, vn_, w_ = r[el]
             linhas.append([round(x, 5), round(y, 5), ref(nome), ref(sub), cd, k, t_, r_, a_, v_,
                            ref(vn_) if v_ == 'O' else -1, r.get('d1'), r.get('d2'), w_, r.get('d1v'), r.get('d2v')])
         por_el[el] = {'textos': textos, 'linhas': linhas}
-    (OUT / f'pontos_{nivel}.json').write_text(json.dumps(por_el, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    for arq, els in ((f'pontos_{nivel}.json', ELEICOES), (f'pontos_{nivel}_dep.json', list(DEP))):
+        (OUT / arq).write_text(json.dumps({el: por_el[el] for el in els}, ensure_ascii=False, separators=(',', ':')),
+                               encoding='utf-8')
     pontos[nivel] = {el: len(v['linhas']) for el, v in por_el.items()}
+    ordem[nivel] = {el: [l[5] for l in por_el[el]['linhas']] for el in DEP}
+
+# ---------------------------------------------------------------- deputados eleitos: um arquivo por eleito (deputado.html)
+# votos do eleito por unidade; seção, local e zona em lista na ordem de pontos_<nível>_dep.json
+DIR_DEP = OUT / 'deputados'
+DIR_DEP.mkdir(exist_ok=True)
+for el, cargo in DEP.items():
+    eleitos = dcand[(dcand.cargo == cargo) & dcand.eleito].nr_candidato
+    c = dcan[(dcan.cargo == cargo) & dcan.nr_votavel.isin(eleitos)]
+    sem_transito = c[~c.transito.fillna(False).astype(bool)]
+    por = {nivel: (sem_transito if nivel in ('secao', 'local') else c).groupby(['nr_votavel', chave]).qt_votos.sum()
+           for nivel, chave in NIVEIS.items()}
+    for nr in eleitos:
+        arq = {}
+        for nivel in NIVEIS:
+            v = por[nivel].loc[nr]
+            arq[nivel] = ([int(v.get(k, 0)) for k in ordem[nivel][el]] if nivel in ordem
+                          else {k: int(x) for k, x in v.items()})
+        assert arq['estado']['Pernambuco'] == int(dcand[(dcand.cargo == cargo) & (dcand.nr_candidato == nr)].votos.iat[0])
+        (DIR_DEP / f'{el}_{nr}.json').write_text(json.dumps(arq, separators=(',', ':')), encoding='utf-8')
 
 # ---------------------------------------------------------------- malha municipal com cd_tse
-geo = json.loads((RAIZ.parent / 'dados-ibge/malha_municipios_PE.geojson').read_text(encoding='utf-8'))
+DADOS = next(p for p in RAIZ.parents if (p / 'dados-ibge').is_dir())   # estudos-dados/ (vale também numa worktree)
+geo = json.loads((DADOS / 'dados-ibge/malha_municipios_PE.geojson').read_text(encoding='utf-8'))
 ibge2tse = {r.cd_ibge: r.cd_tse for r in mun.itertuples()}
 for f in geo['features']:
     f['properties'] = {'id': ibge2tse[f['properties']['codarea']]}
@@ -160,6 +236,10 @@ print('pontos:', pontos)
 print('agregados:', {k: len(v) for k, v in pol.items()})
 e = pol['estado']['Pernambuco']
 print('estado, conferência (total, Raquel, adversário, válidos):', {el: [e[el][i] for i in (0, 1, 2, 5)] for el in ELEICOES})
+for el in DEP:
+    print(el, 'estado (total, bloco Raquel, bloco João, vencedor, mais votado, válidos, g, gv):', e[el])
 print('Raquel % válidos:', {el: round(e[el][1] / e[el][5] * 100, 2) for el in ELEICOES}, '| variação 2026 x T2 em válidos:', e['d2v'])
 for f in sorted(OUT.iterdir()):
-    print(f.name, round(f.stat().st_size / 1e6, 2), 'MB')
+    if f.is_file():
+        print(f.name, round(f.stat().st_size / 1e6, 2), 'MB')
+print('deputados/:', len(list(DIR_DEP.iterdir())), 'arquivos,', round(sum(f.stat().st_size for f in DIR_DEP.iterdir()) / 1e6, 2), 'MB')

@@ -192,3 +192,33 @@ th { position: sticky; top: 0; background: var(--superficie); font: 600 11px var
   .tabela-area { left: 8px; right: 8px; width: auto; top: 8px; bottom: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* lista de eleitos: bolinha do bloco */
+.bola { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
+
+/* modos do mapa: abas no topo (governador e blocos x deputados eleitos) */
+.modos { display: flex; gap: 4px; align-self: flex-end; margin-bottom: -12px; margin-right: auto; margin-left: 24px; }
+.modos a {
+  padding: 8px 14px 10px; font: 600 13.5px var(--f-titulo); letter-spacing: .02em; color: var(--tinta-2); text-decoration: none;
+  border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0;
+}
+.modos a:hover { color: var(--realce); }
+.modos a[aria-current="page"] { color: var(--realce); background: var(--pagina); border-color: var(--linha); box-shadow: inset 0 3px 0 var(--realce); }
+@media (max-width: 860px) {
+  .topo { flex-wrap: wrap; }
+  .modos { order: 3; width: 100%; margin: 6px 0 -12px; }
+}
+
+/* página do deputado eleito */
+.seletor {
+  width: 100%; border: 1px solid var(--linha-forte); border-radius: 6px; padding: 8px 10px; background: var(--pagina);
+  font: 500 14px var(--f-texto); color: var(--tinta);
+}
+.ficha-nome { margin: 0; font: 700 22px/1.1 var(--f-titulo); }
+.ficha-lado { margin: 0; font-size: 13.5px; color: var(--tinta-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ficha-lado i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.top-lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13.5px; }
+.top-lista li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline; }
+.top-lista li span:not(:first-child) { font-variant-numeric: tabular-nums; color: var(--tinta-2); }
+.top-lista button { border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: var(--realce); font: inherit; }
+.ficha-numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-top: 4px; }

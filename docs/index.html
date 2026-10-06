@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mapa eleitoral de Pernambuco</title>
-<meta name="description" content="Votos para governador de Pernambuco em 2022 e 2026, da seção eleitoral ao estado. Projeto independente de Diego Abreu.">
+<meta name="description" content="Votos para governador de Pernambuco em 2022 e 2026 e para deputado em 2026, por bloco, da seção eleitoral ao estado. Projeto independente de Diego Abreu.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
@@ -14,14 +14,27 @@
 <body>
 <header class="topo">
   <div class="topo-titulo">
-    <p class="sobretitulo">Governador · Pernambuco</p>
+    <p class="sobretitulo">Governador e deputados · Pernambuco</p>
     <h1>Mapa eleitoral 2022–2026</h1>
   </div>
+  <nav class="modos" aria-label="Modo do mapa">
+    <a href="index.html" aria-current="page">Governador e blocos</a>
+    <a href="deputado.html">Deputados eleitos</a>
+  </nav>
   <p class="autoria">Diego Abreu</p>
 </header>
 
 <main class="layout">
   <aside class="painel" aria-label="Controles e resultados">
+    <section class="bloco">
+      <h2 class="rotulo" id="r-cargo">Cargo</h2>
+      <div class="segmentado" role="radiogroup" aria-labelledby="r-cargo" id="cargo">
+        <button role="radio" data-v="gov">Governador</button>
+        <button role="radio" data-v="DE2026">Dep. estadual</button>
+        <button role="radio" data-v="DF2026">Dep. federal</button>
+      </div>
+    </section>
+
     <section class="bloco">
       <h2 class="rotulo" id="r-eleicao">Eleição</h2>
       <div class="segmentado" role="radiogroup" aria-labelledby="r-eleicao" id="eleicao">
@@ -46,6 +59,7 @@
         <button role="tab" data-v="venc">Vencedor</button>
         <button role="tab" data-v="dif">Raquel × bloco PSB</button>
         <button role="tab" data-v="var">Variação</button>
+        <button role="tab" data-v="gd" hidden>Governador × deputado</button>
         <button role="tab" data-v="pref" class="aba-larga">Prefeitos: com quem estão em 2026</button>
       </div>
       <div class="sub-controle" id="var-base" hidden>
@@ -79,6 +93,12 @@
       <div id="foco"></div>
     </section>
 
+    <section class="bloco" id="eleitos-bloco" hidden>
+      <h2 class="rotulo" id="eleitos-titulo">Eleitos</h2>
+      <div id="eleitos"></div>
+      <div class="acoes"><button class="botao-texto" id="ver-eleitos">Ver lista dos eleitos</button></div>
+    </section>
+
     <section class="bloco">
       <label class="rotulo" for="busca">Ir para município</label>
       <input id="busca" list="lista-municipios" placeholder="Digite o nome" autocomplete="off">
@@ -99,6 +119,9 @@
         <li>Bloco PSB: Danilo Cabral no 1º turno de 2022 e João Campos em 2026. O 2º turno de 2022 fica fora dessa leitura: o PSB apoiou Marília Arraes, mas sem a candidatura ser do partido.</li>
         <li>No 1º turno de 2022, o vencedor aparece como Raquel, Marília ou outro candidato; o nome está no detalhe.</li>
         <li>RD: Regiões de Desenvolvimento (Condepe/Fidem). Meso: mesorregiões do IBGE.</li>
+        <li>Deputados (2026): cada voto vai para o bloco do partido na coligação de governador registrada no TSE. Bloco Raquel: PSD, PODE, AVANTE, PSDB, Cidadania, União e PP. Bloco João: PSB, PT, PCdoB, PV, MDB, Republicanos, PDT, PRD, Solidariedade e DC. Os demais partidos (PL, NOVO, PSOL, Rede e outros) ficam em "outros / sem lado".</li>
+        <li>Ajuste individual: só nos eleitos com lado público diferente do partido. Os estaduais seguem a lista do Jamildo.com (05/10/2026); os federais, notícias citadas na lista dos eleitos. Muda de bloco só o voto nominal do eleito; o voto de legenda fica com o partido. Não eleitos ficam pelo partido.</li>
+        <li>Governador × deputado: % de Raquel para governadora menos % dos candidatos a deputado do bloco dela, na mesma base. Roxo (positivo): Raquel teve mais voto que o bloco. Verde (negativo): o bloco teve mais voto que ela. É saldo de cada lugar, não o voto de cada eleitor.</li>
         <li>Prefeitos: lado declarado na disputa de 2026, pela lista do Jamildo.com (estado em 06/10/2026). Não há categoria neutra, e outras contagens divergem em até 5 municípios. Prefeito aliado e voto andam juntos, mas isso não mostra que o prefeito causou o voto.</li>
       </ul>
     </details>
@@ -119,7 +142,7 @@
 
 <footer class="rodape">
   <p>Projeto independente de Diego Abreu. Não é publicação do Governo de Pernambuco nem de campanha.</p>
-  <p>Dados: TSE (votação por seção, locais de votação), IBGE (malha municipal, mesorregiões), BDE/Condepe-Fidem (Regiões de Desenvolvimento), Jamildo.com (apoio dos prefeitos). Mapa base © OpenStreetMap, OpenMapTiles, OpenFreeMap.</p>
+  <p>Dados: TSE (votação por seção, locais de votação), IBGE (malha municipal, mesorregiões), BDE/Condepe-Fidem (Regiões de Desenvolvimento), Jamildo.com (apoio dos prefeitos e dos deputados estaduais eleitos), notícias citadas na lista dos eleitos (deputados federais). Mapa base © OpenStreetMap, OpenMapTiles, OpenFreeMap.</p>
 </footer>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

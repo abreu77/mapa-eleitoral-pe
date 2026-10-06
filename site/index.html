@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mapa eleitoral de Pernambuco</title>
+<meta name="description" content="Votos para governador de Pernambuco em 2022 e 2026, da seção eleitoral ao estado. Projeto independente de Diego Abreu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header class="topo">
+  <div class="topo-titulo">
+    <p class="sobretitulo">Governador · Pernambuco</p>
+    <h1>Mapa eleitoral 2022–2026</h1>
+  </div>
+  <p class="autoria">Diego Abreu</p>
+</header>
+
+<main class="layout">
+  <aside class="painel" aria-label="Controles e resultados">
+    <section class="bloco">
+      <h2 class="rotulo" id="r-eleicao">Eleição</h2>
+      <div class="segmentado" role="radiogroup" aria-labelledby="r-eleicao" id="eleicao">
+        <button role="radio" data-v="2022T1">2022 · 1º turno</button>
+        <button role="radio" data-v="2022T2">2022 · 2º turno</button>
+        <button role="radio" data-v="2026T1">2026</button>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <h2 class="rotulo" id="r-base">Base dos percentuais</h2>
+      <div class="segmentado" role="radiogroup" aria-labelledby="r-base" id="base-pct">
+        <button role="radio" data-v="t">Votos totais</button>
+        <button role="radio" data-v="w">Votos válidos</button>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <h2 class="rotulo" id="r-leitura">Leitura</h2>
+      <div class="abas" role="tablist" aria-labelledby="r-leitura" id="leitura">
+        <button role="tab" data-v="pct">% de Raquel</button>
+        <button role="tab" data-v="venc">Vencedor</button>
+        <button role="tab" data-v="dif">Raquel × bloco PSB</button>
+        <button role="tab" data-v="var">Variação</button>
+        <button role="tab" data-v="pref" class="aba-larga">Prefeitos: com quem estão em 2026</button>
+      </div>
+      <div class="sub-controle" id="var-base" hidden>
+        <span class="rotulo-inline">2026 comparado com</span>
+        <div class="segmentado pequeno" role="radiogroup" aria-label="Base da variação">
+          <button role="radio" data-v="d2">2022 · 2º turno</button>
+          <button role="radio" data-v="d1">2022 · 1º turno</button>
+        </div>
+      </div>
+      <p class="aviso" id="aviso-leitura" hidden></p>
+    </section>
+
+    <section class="bloco">
+      <div class="linha-rotulo">
+        <h2 class="rotulo" id="r-nivel">Nível</h2>
+        <span class="nivel-atual" id="nivel-nome">Município</span>
+      </div>
+      <input type="range" id="nivel" min="0" max="6" step="1" value="3" aria-labelledby="r-nivel">
+      <div class="marcas" aria-hidden="true">
+        <span>Seção</span><span>Local</span><span>Zona</span><span>Município</span><span>RD</span><span>Meso</span><span>Estado</span>
+      </div>
+    </section>
+
+    <section class="bloco legenda-bloco">
+      <h2 class="rotulo" id="legenda-titulo">Legenda</h2>
+      <div id="legenda"></div>
+    </section>
+
+    <section class="bloco destaque" aria-live="polite">
+      <h2 class="rotulo" id="foco-rotulo">Pernambuco</h2>
+      <div id="foco"></div>
+    </section>
+
+    <section class="bloco">
+      <label class="rotulo" for="busca">Ir para município</label>
+      <input id="busca" list="lista-municipios" placeholder="Digite o nome" autocomplete="off">
+      <datalist id="lista-municipios"></datalist>
+      <div class="acoes">
+        <button class="botao-texto" id="ver-noronha">Fernando de Noronha</button>
+        <button class="botao-texto" id="ver-estado">Estado inteiro</button>
+        <button class="botao-texto" id="ver-tabela" aria-expanded="false">Ver em tabela</button>
+      </div>
+    </section>
+
+    <details class="bloco notas">
+      <summary>Como ler</summary>
+      <ul>
+        <li>Base dos percentuais: votos totais (brancos e nulos incluídos) ou votos válidos (só votos em candidatos, como no resultado oficial do TSE).</li>
+        <li>Seção eleitoral não tem contorno oficial: cada seção é um ponto ao redor do seu local de votação. A zona é um ponto no centro dos seus locais.</li>
+        <li>Seções de voto em trânsito ficam fora dos pontos e dentro dos totais.</li>
+        <li>Bloco PSB: Danilo Cabral no 1º turno de 2022 e João Campos em 2026. O 2º turno de 2022 fica fora dessa leitura: o PSB apoiou Marília Arraes, mas sem a candidatura ser do partido.</li>
+        <li>No 1º turno de 2022, o vencedor aparece como Raquel, Marília ou outro candidato; o nome está no detalhe.</li>
+        <li>RD: Regiões de Desenvolvimento (Condepe/Fidem). Meso: mesorregiões do IBGE.</li>
+        <li>Prefeitos: lado declarado na disputa de 2026, pela lista do Jamildo.com (estado em 06/10/2026). Não há categoria neutra, e outras contagens divergem em até 5 municípios. Prefeito aliado e voto andam juntos, mas isso não mostra que o prefeito causou o voto.</li>
+      </ul>
+    </details>
+  </aside>
+
+  <div class="mapa-area">
+    <div id="mapa" role="application" aria-label="Mapa de Pernambuco"></div>
+    <div class="carregando" id="carregando" hidden>Carregando seções…</div>
+    <section class="tabela-area" id="tabela-area" hidden aria-label="Tabela">
+      <div class="tabela-topo">
+        <h2 class="rotulo" id="tabela-titulo">Tabela</h2>
+        <button class="botao-texto" id="fechar-tabela">Fechar</button>
+      </div>
+      <div class="tabela-rolagem"><table id="tabela"></table></div>
+    </section>
+  </div>
+</main>
+
+<footer class="rodape">
+  <p>Projeto independente de Diego Abreu. Não é publicação do Governo de Pernambuco nem de campanha.</p>
+  <p>Dados: TSE (votação por seção, locais de votação), IBGE (malha municipal, mesorregiões), BDE/Condepe-Fidem (Regiões de Desenvolvimento), Jamildo.com (apoio dos prefeitos). Mapa base © OpenStreetMap, OpenMapTiles, OpenFreeMap.</p>
+</footer>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

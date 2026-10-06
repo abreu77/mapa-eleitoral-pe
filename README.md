@@ -2,7 +2,7 @@
 
 Mapa interativo e análise dos votos para governador de Pernambuco no 1º e no 2º turno de 2022 e no 1º turno de 2026, da seção eleitoral ao estado.
 
-**Mapa:** _(link do GitHub Pages, quando o repositório for público)_
+**Mapa:** https://abreu77.github.io/mapa-eleitoral-pe/
 **Conclusões:** [`CONCLUSOES.md`](CONCLUSOES.md)
 
 Projeto independente de Diego Abreu. Não é publicação do Governo de Pernambuco nem de campanha.

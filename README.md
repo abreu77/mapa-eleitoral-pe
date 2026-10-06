@@ -13,7 +13,7 @@ Projeto independente de Diego Abreu. Não é publicação do Governo de Pernambu
 - **Leitura:** % de Raquel Lyra; candidato mais votado; Raquel menos o bloco PSB (Danilo Cabral em 2022, João Campos em 2026); variação de Raquel entre 2022 e 2026; lado declarado pelos prefeitos em 2026 (Jamildo.com).
 - **Nível**, numa barra deslizante: seção, local de votação, zona, município, Região de Desenvolvimento, mesorregião e estado.
 - **Base:** votos totais ou votos válidos.
-- Tabela com os mesmos números, modo escuro e versão para celular.
+- Tabela com os mesmos números e versão para celular.
 
 ## Perguntas da análise
 

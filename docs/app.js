@@ -29,8 +29,8 @@ const fmtInt = new Intl.NumberFormat('pt-BR');
 const fmtPct = (x) => (x == null || Number.isNaN(x) ? '—' : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%');
 const fmtPp = (x) => (x == null || Number.isNaN(x) ? '—' : (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' p.p.');
 
-const escuro = () => document.documentElement.dataset.theme === 'dark' ||
-  (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+// tema fixo no claro (decisão do Diego): o modo escuro do sistema não muda o mapa
+const escuro = () => false;
 const cor = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const corCat = (c) => ({ R: cor('--raquel'), J: cor('--joao'), M: cor('--marilia'), O: cor('--outro'), E: cor('--empate') }[c] || cor('--sem-dado'));
 function classe(valor, esc) {
@@ -367,7 +367,6 @@ function liga() {
     mapa.fitBounds([[x0, y0], [x1, y1]], { padding: 40, maxZoom: 12 });
     if (estado.nivel === 3) { estado.foco = cd; atualizaFoco(); destacaFoco(); }
   });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => location.reload());
 }
 
 /* ---------------------------------------------------------------- início */

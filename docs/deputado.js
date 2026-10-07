@@ -1,5 +1,5 @@
 /* Mapa eleitoral de Pernambuco: onde cada deputado eleito em 2026 teve seus votos, sozinho ou somado
-   com os eleitos do mesmo partido ou da mesma federação.
+   com os eleitos do mesmo partido ou da mesma federação; e os 6 mais votados para o senado.
    Dados gerados por src/exporta_mapa.py: agregados.json (válidos por cargo e lado dos eleitos),
    pontos_<nível>_dep.json (posições e válidos por seção, local e zona) e deputados/<cargo>_<número>.json
    (votos do eleito por unidade; seção, local e zona na ordem das linhas dos pontos). */
@@ -7,7 +7,7 @@
 
 const NIVEIS = ['secao', 'local', 'zona', 'municipio', 'rd', 'meso', 'estado'];
 const NIVEL_NOME = ['Seção', 'Local de votação', 'Zona eleitoral', 'Município', 'Região de Desenvolvimento', 'Mesorregião', 'Estado'];
-const CARGO_NOME = { DE2026: 'Deputado estadual', DF2026: 'Deputado federal' };
+const CARGO_NOME = { DE2026: 'Deputado estadual', DF2026: 'Deputado federal', SE2026: 'Senador' };
 const LADO_NOME = { R: 'com Raquel Lyra', J: 'com João Campos', O: 'sem lado declarado' };
 const GRUPO_NOME = { R: 'Bloco Raquel', J: 'Bloco João', O: 'Outros / sem lado' };
 const COLIG_NOME = { R: 'Coligação de Raquel', J: 'Coligação de João', O: 'Fora das duas coligações' };
@@ -22,6 +22,9 @@ const RAMPA = {
 const LIMITES = { pct: [0.5, 1, 2, 5, 10, 20, 35], peso: [0.1, 0.25, 0.5, 1, 2, 5, 10] };
 
 const estado = { cargo: 'DE2026', modo: 'eleito', sel: null, leitura: 'pct', nivel: 3, foco: null };
+const sen = () => estado.cargo === 'SE2026';
+const um = () => (sen() ? 'candidato' : 'eleito');   // no senado entram também os que perderam
+const lado = (b) => (sen() ? { R: 'chapa de Raquel Lyra', J: 'chapa de João Campos', O: 'fora das duas chapas' }[b] : LADO_NOME[b]);
 const dados = { agregados: null, municipiosGeo: null, pontos: {}, poligonos: {}, eleito: {} };
 const $ = (s) => document.querySelector(s);
 const fmtInt = new Intl.NumberFormat('pt-BR');
@@ -30,10 +33,11 @@ const cor = (v) => getComputedStyle(document.documentElement).getPropertyValue(v
 const título = (x) => x.toLowerCase().replace(/(^|[\s(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase())
   .replace(/ (De|Da|Do|Dos|Das|E) /g, (m) => m.toLowerCase()).replace(/\b(Pt|Pl|Psb|Psd)\b/g, (m) => m.toUpperCase());
 
-/* eleitos do cargo: [{nr, nome, partido, bloco, votos, fonte, federacao, blocoPartido}] por votos */
-const eleitos = (cargo) => Object.entries(dados.agregados.candidatos[cargo]).filter(([, c]) => c[3])
+/* candidatos com mapa (deputados eleitos; 6 mais votados no senado):
+   [{nr, nome, partido, bloco, votos, fonte, federacao, blocoPartido, eleito}] por votos */
+const eleitos = (cargo) => Object.entries(dados.agregados.candidatos[cargo]).filter(([, c]) => c[8])
   .map(([nr, c]) => ({ nr, nome: título(c[0]), partido: c[1], bloco: c[2], votos: c[4], fonte: c[5],
-    federacao: c[6] ? título(c[6]).replace(/^Federação /, '').replace(/ - .*$/, '').replace(/\b(Psol|Psdb)\b/g, (m) => m.toUpperCase()) : null, blocoPartido: c[7] }))
+    eleito: c[3], federacao: c[6] ? título(c[6]).replace(/^Federação /, '').replace(/ - .*$/, '').replace(/\b(Psol|Psdb)\b/g, (m) => m.toUpperCase()) : null, blocoPartido: c[7] }))
   .sort((a, b) => b.votos - a.votos);
 
 /* grupos do modo atual: um eleito, os eleitos de um partido ou os de uma federação.
@@ -200,7 +204,7 @@ async function desenha() {
 
 /* ---------------------------------------------------------------- textos */
 function linkFonte(f) {
-  if (!f) return 'pela coligação de governador do partido (TSE)';
+  if (!f) return sen() ? 'pela chapa registrada no TSE' : 'pela coligação de governador do partido (TSE)';
   const url = (f.match(/https?:\/\/[^\s);]+/) || [''])[0];
   const texto = f.replace(/:?\s*https?:\/\/[^\s);]+/, '').replace(/"/g, '&quot;');
   return `<span title="${texto}">pelo apoio público${url ? ` (<a href="${url}" target="_blank" rel="noopener">fonte</a>)` : ''}</span>`;
@@ -220,7 +224,7 @@ function ficha(ve) {
         <div class="num"><b>${fmtPct((ve.estado.Pernambuco / w) * 100, 2)}</b><span>dos votos válidos no estado</span></div>
       </div>
       <ol class="top-lista">${g.membros.map((e) => `<li><button data-nr="${e.nr}" title="Ver só ${e.nome}"><i class="bola" style="background:${RAMPA[e.bloco][6]}"></i>${e.nome}${estado.modo === 'federacao' ? ` (${e.partido})` : ''}</button>
-        <span>${fmtInt.format(e.votos)}</span><span>${LADO_NOME[e.bloco].replace('com ', '').replace(' declarado', '')}</span></li>`).join('')}</ol>`;
+        <span>${fmtInt.format(e.votos)}</span><span>${lado(e.bloco).replace('com ', '').replace(' declarado', '')}</span></li>`).join('')}</ol>`;
     $('#ficha').querySelectorAll('button[data-nr]').forEach((b) => b.onclick = () => {
       estado.modo = 'eleito'; estado.sel = b.dataset.nr; opcoes(); sincroniza(); desenha();
     });
@@ -231,10 +235,12 @@ function ficha(ve) {
   const posicao = lista.findIndex((x) => x.nr === e.nr) + 1;
   $('#ficha').innerHTML = `
     <p class="ficha-nome">${e.nome}</p>
-    <p class="ficha-lado"><i style="background:${RAMPA[e.bloco][6]}"></i>${e.partido} · ${LADO_NOME[e.bloco]}</p>
+    <p class="ficha-lado"><i style="background:${RAMPA[e.bloco][6]}"></i>${e.partido} · ${lado(e.bloco)}</p>
     <p class="meta">Lado ${linkFonte(e.fonte)}.</p>
     <div class="ficha-numeros">
-      <div class="num"><b>${fmtInt.format(ve.estado.Pernambuco)}</b><span>votos · ${posicao}º entre os ${lista.length} eleitos</span></div>
+      <div class="num"><b>${fmtInt.format(ve.estado.Pernambuco)}</b><span>votos · ${sen()
+        ? `${Object.values(dados.agregados.candidatos[estado.cargo]).filter((c) => c[4] > e.votos).length + 1}º de ${Object.keys(dados.agregados.candidatos[estado.cargo]).length} candidatos · ${e.eleito ? 'eleito' : 'não eleito'}`
+        : `${posicao}º entre os ${lista.length} eleitos`}</span></div>
       <div class="num"><b>${fmtPct((ve.estado.Pernambuco / w) * 100, 2)}</b><span>dos votos válidos no estado</span></div>
     </div>`;
 }
@@ -243,13 +249,13 @@ function legenda() {
   const lim = LIMITES[estado.leitura];
   const fmt = (x) => x.toLocaleString('pt-BR');
   const rotulos = RAMPA[e.bloco].map((_, i) => (i === 0 ? '<' + fmt(lim[0]) : i === lim.length ? fmt(lim[i - 1]) + '+' : fmt(lim[i - 1])));
-  $('#legenda-titulo').textContent = (estado.leitura === 'pct' ? '% dos votos válidos no lugar' : `% da votação ${estado.modo === 'eleito' ? 'do eleito' : 'dos eleitos'}`) + ` · ${e.nome}`;
+  $('#legenda-titulo').textContent = (estado.leitura === 'pct' ? '% dos votos válidos no lugar' : `% da votação ${estado.modo === 'eleito' ? 'do ' + um() : 'dos eleitos'}`) + ` · ${e.nome}`;
   $('#legenda').innerHTML = `<div class="escala">${RAMPA[e.bloco].map((c) => `<span style="background:${c}"></span>`).join('')}</div>
     <div class="escala escala-rotulos">${rotulos.map((r) => `<em>${r}</em>`).join('')}</div>
     <div class="escala-pontas"><span>menos votos</span><span>mais votos (%)</span></div>
-    <div class="cats"><div class="cat"><i style="background:${cor('--sem-dado')}"></i>Nenhum voto ${estado.modo === 'eleito' ? 'do eleito' : 'dos eleitos'}</div></div>`;
-  const quem = estado.modo === 'eleito' ? 'do eleito' : `dos ${deQuem(e)}, somados,`;
-  const corTxt = estado.modo === 'eleito' ? `Cor pelo lado dele: ${LADO_NOME[e.bloco]}.`
+    <div class="cats"><div class="cat"><i style="background:${cor('--sem-dado')}"></i>Nenhum voto ${estado.modo === 'eleito' ? 'do ' + um() : 'dos eleitos'}</div></div>`;
+  const quem = estado.modo === 'eleito' ? 'do ' + um() : `dos ${deQuem(e)}, somados,`;
+  const corTxt = estado.modo === 'eleito' ? (sen() ? `Cor pela chapa: ${lado(e.bloco)}.` : `Cor pelo lado dele: ${lado(e.bloco)}.`)
     : `Cor pelo lado do partido na coligação de governador: ${COLIG_NOME[e.bloco].replace(/^./, (c) => c.toLowerCase())}.`;
   $('#aviso-leitura').textContent = estado.leitura === 'pct'
     ? `Votos ${quem} sobre os votos válidos para ${CARGO_NOME[estado.cargo].toLowerCase()} em cada lugar. ${corTxt}`
@@ -262,14 +268,14 @@ function mostraPopup(f, lngLat) {
   const [t, sub] = titulos[id] || [id, ''];
   const e = grupoAtual();
   const corpo = r ? linhaPop(`Votos ${estado.modo === 'eleito' ? 'de ' + e.nome : 'dos eleitos'}`, fmtInt.format(r.votos)) + linhaPop('% dos válidos no lugar', fmtPct(r.pct))
-    + linhaPop(`% da votação ${estado.modo === 'eleito' ? 'do eleito' : 'dos eleitos'}`, fmtPct(r.peso, 2)) + linhaPop('Raquel governadora (válidos)', fmtPct(r.rq)) : '';
+    + linhaPop(`% da votação ${estado.modo === 'eleito' ? 'do ' + um() : 'dos eleitos'}`, fmtPct(r.peso, 2)) + linhaPop('Raquel governadora (válidos)', fmtPct(r.rq)) : '';
   popup.setLngLat(lngLat).setHTML(`<p class="pop-titulo">${t}</p><p class="pop-sub">${sub}</p>${corpo}`).addTo(mapa);
 }
 function atualizaFoco() {
   const id = estado.foco && registroAtual[estado.foco] ? estado.foco : null;
   const r = id ? registroAtual[id] : null;
   const e = grupoAtual();
-  const de = estado.modo === 'eleito' ? 'do eleito' : 'dos eleitos';
+  const de = estado.modo === 'eleito' ? 'do ' + um() : 'dos eleitos';
   $('#foco-rotulo').textContent = id ? titulos[id][0] : 'Clique num lugar do mapa';
   if (!r) { $('#foco').innerHTML = `<p class="meta">Clique num município, seção ou região para ver os votos ${estado.modo === 'eleito' ? 'de ' + e.nome : 'dos ' + deQuem(e)} ali.</p>`; return; }
   $('#foco').innerHTML = `<div class="numeros">
@@ -320,7 +326,7 @@ function marca(grupo, valor, attr) {
 }
 function opcoes() {
   const l = grupos(estado.cargo, estado.modo);
-  const nomes = estado.modo === 'eleito' ? GRUPO_NOME : COLIG_NOME;
+  const nomes = estado.modo === 'eleito' ? (sen() ? { R: 'Chapa Raquel', J: 'Chapa João', O: 'Fora das duas chapas' } : GRUPO_NOME) : COLIG_NOME;
   const conta = (g) => (estado.modo === 'eleito' ? '' : ` · ${g.membros.length} ${g.membros.length === 1 ? 'eleito' : 'eleitos'}`);
   $('#deputado').innerHTML = ['R', 'J', 'O'].map((b) => {
     const gs = l.filter((g) => g.bloco === b);
@@ -328,7 +334,8 @@ function opcoes() {
   }).join('');
   if (!l.some((g) => g.id === estado.sel)) estado.sel = l[0].id;
   $('#deputado').value = estado.sel;
-  $('#rotulo-escolha').textContent = MODO_NOME[estado.modo];
+  $('#rotulo-escolha').textContent = sen() ? 'Candidato' : MODO_NOME[estado.modo];
+  $('#modo').hidden = $('#r-modo').hidden = sen();   // senado: só candidato a candidato
 }
 function sincroniza() {
   marca('#cargo', estado.cargo, 'aria-checked');
@@ -348,7 +355,9 @@ function vaiPara(cd) {
 function liga() {
   $('#cargo').addEventListener('click', (e) => {
     const v = e.target.closest('button')?.dataset.v; if (!v || v === estado.cargo) return;
-    estado.cargo = v; estado.sel = null; estado.foco = null; opcoes(); sincroniza(); desenha();
+    estado.cargo = v; estado.sel = null; estado.foco = null;
+    if (sen()) estado.modo = 'eleito';
+    opcoes(); sincroniza(); desenha();
   });
   $('#modo').addEventListener('click', (e) => {
     const v = e.target.closest('button')?.dataset.v; if (!v || v === estado.modo) return;

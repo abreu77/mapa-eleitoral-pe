@@ -1,4 +1,4 @@
-"""Deputados estaduais e federais de 2026 por bloco: Raquel x João.
+"""Deputados estaduais e federais e senadores de 2026 por bloco: Raquel x João.
 
 Lado de cada voto: o partido (dois primeiros dígitos do número) segue a coligação de
 governador de 2026 no TSE (consulta_coligacao_2026). Fora das duas coligações = "outros".
@@ -19,7 +19,9 @@ RAIZ = Path(__file__).resolve().parents[1]
 DADOS = next(p for p in RAIZ.parents if (p / 'dados-tse').is_dir())   # estudos-dados/ (vale também numa worktree)
 TSE = DADOS / 'dados-tse/2026'
 SAIDA = RAIZ / 'dados_limpos'
-CARGOS = {'DEPUTADO FEDERAL': 'federal', 'DEPUTADO ESTADUAL': 'estadual'}
+CARGOS = {'DEPUTADO FEDERAL': 'federal', 'DEPUTADO ESTADUAL': 'estadual', 'SENADOR': 'senador'}
+# senado: a coligação de cada partido é a mesma da de governador (chapa Raquel: Eduardo da Fonte e Túlio
+# Gadêlha; chapa João: Humberto Costa e Marília Arraes); cada eleitor vota em até dois; sem voto de legenda
 BRANCO, NULO = '95', '96'
 COLIGACAO = {'PERNAMBUCO DE CORAÇÃO': 'R', 'FRENTE POPULAR DE PERNAMBUCO': 'J'}
 

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Deputados eleitos em Pernambuco</title>
-<meta name="description" content="Onde cada deputado estadual e federal eleito por Pernambuco em 2026 teve seus votos, da seção eleitoral ao estado, com o lado na disputa entre Raquel Lyra e João Campos. Projeto independente de Diego Abreu.">
+<title>Candidatos em Pernambuco</title>
+<meta name="description" content="Onde cada deputado estadual e federal eleito por Pernambuco em 2026 e os principais candidatos ao senado tiveram seus votos, da seção eleitoral ao estado, com o lado na disputa entre Raquel Lyra e João Campos. Projeto independente de Diego Abreu.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
@@ -14,12 +14,12 @@
 <body>
 <header class="topo">
   <div class="topo-titulo">
-    <p class="sobretitulo">Deputados eleitos · Pernambuco · 2026</p>
+    <p class="sobretitulo">Candidatos · Pernambuco · 2026</p>
     <h1>Mapa eleitoral 2022–2026</h1>
   </div>
   <nav class="modos" aria-label="Modo do mapa">
     <a href="index.html">Governador e blocos</a>
-    <a href="deputado.html" aria-current="page">Deputados eleitos</a>
+    <a href="deputado.html" aria-current="page">Candidatos</a>
   </nav>
   <p class="autoria">Diego Abreu</p>
 </header>
@@ -31,6 +31,7 @@
       <div class="segmentado" role="radiogroup" aria-labelledby="r-cargo" id="cargo">
         <button role="radio" data-v="DE2026">Dep. estadual · 49</button>
         <button role="radio" data-v="DF2026">Dep. federal · 25</button>
+        <button role="radio" data-v="SE2026">Senado · 6</button>
       </div>
     </section>
 
@@ -95,7 +96,8 @@
     <details class="bloco notas">
       <summary>Como ler</summary>
       <ul>
-        <li>Só os eleitos de 2026: 49 deputados estaduais e 25 federais. Votos nominais do candidato; voto de legenda não entra.</li>
+        <li>Deputados: só os eleitos de 2026, 49 estaduais e 25 federais. Votos nominais do candidato; voto de legenda não entra.</li>
+        <li>Senado: os 6 mais votados, eleitos ou não (Humberto Costa e Marília Arraes foram eleitos). Cada eleitor vota em até dois; o percentual é sobre os votos válidos para senador, como o TSE. Cor pela chapa: roxo, de Raquel; amarelo, de João; cinza, fora das duas.</li>
         <li>% dos votos no lugar: votos do eleito sobre os votos válidos para o mesmo cargo naquele lugar.</li>
         <li>Peso na votação do eleito: quanto da votação total dele saiu daquele lugar.</li>
         <li>Partido e federação: soma dos votos nominais dos eleitos do partido ou da federação (só eleitos; demais candidatos e voto de legenda não entram). A cor segue o lado do partido na coligação de governador (TSE); a ficha mostra o lado de cada eleito, que pode ser outro.</li>

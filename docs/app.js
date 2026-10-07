@@ -1,4 +1,4 @@
-/* Mapa eleitoral de Pernambuco, governador 2022–2026 e deputados 2026 por bloco.
+/* Mapa eleitoral de Pernambuco, governador 2022–2026 e deputados e senado 2026 por bloco (chapa, no senado).
    Dados gerados por src/exporta_mapa.py em data/. Percentuais sobre votos totais ou válidos. */
 'use strict';
 
@@ -8,11 +8,13 @@ const ELEICAO_NOME = { '2022T1': '2022 · 1º turno', '2022T2': '2022 · 2º tur
 const ADV = { '2022T1': 'Danilo Cabral (PSB)', '2022T2': 'Marília Arraes', '2026T1': 'João Campos' };
 const CAT_NOME = { R: 'Raquel Lyra', J: 'João Campos', M: 'Marília Arraes', O: 'Outro candidato', E: 'Empate' };
 const CAT_ORDEM = { '2022T1': ['R', 'M', 'O', 'E'], '2022T2': ['R', 'M', 'E'], '2026T1': ['R', 'J', 'E'] };
-/* deputados: "eleição" DE2026 / DF2026, com blocos no lugar de candidatos */
-const CARGO_NOME = { gov: 'Governador', DE2026: 'Deputado estadual', DF2026: 'Deputado federal' };
+/* deputados e senado: "eleição" DE2026 / DF2026 / SE2026, com blocos no lugar de candidatos */
+const CARGO_NOME = { gov: 'Governador', DE2026: 'Deputado estadual', DF2026: 'Deputado federal', SE2026: 'Senador' };
 const BLOCO_NOME = { R: 'Bloco Raquel', J: 'Bloco João', O: 'Outros / sem lado', E: 'Empate' };
 const dep = () => estado.cargo !== 'gov';
 const elx = () => (dep() ? estado.cargo : estado.eleicao);   // chave dos dados: eleição de governador ou cargo
+const sen = () => estado.cargo === 'SE2026';
+const T = (x) => (sen() ? x.replace(/bloco/g, 'chapa').replace(/Bloco/g, 'Chapa').replace(/(hapa) mais votado/g, '$1 mais votada') : x);   // no senado, "chapa"
 
 /* escalas (classes fixas para comparar eleições com a mesma régua) */
 const ESC = {
@@ -97,8 +99,8 @@ function corDe(v) {
   return classe(valorLeitura(v), ESC[estado.leitura]);
 }
 /* nomes que mudam com o cargo */
-const nomeR = () => (dep() ? 'Bloco Raquel' : 'Raquel Lyra');
-const nomeA = () => (dep() ? 'Bloco João' : ADV[estado.eleicao]);
+const nomeR = () => (dep() ? T('Bloco Raquel') : 'Raquel Lyra');
+const nomeA = () => (dep() ? T('Bloco João') : ADV[estado.eleicao]);
 const corA = () => corCat(dep() || estado.eleicao === '2026T1' ? 'J' : estado.eleicao === '2022T2' ? 'M' : 'O');
 
 /* ---------------------------------------------------------------- carga */
@@ -238,8 +240,8 @@ function legenda() {
   const box = $('#legenda');
   const cg = CARGO_NOME[estado.cargo];
   const titulo = dep()
-    ? { pref: 'Prefeitos na disputa de 2026', pct: `% do bloco Raquel · ${cg}`, venc: `Bloco mais votado · ${cg}`,
-      dif: `Bloco Raquel menos bloco João · ${cg}`, gd: `Raquel governadora menos bloco Raquel · ${cg}` }[L]
+    ? T({ pref: 'Prefeitos na disputa de 2026', pct: `% do bloco Raquel · ${cg}`, venc: `Bloco mais votado · ${cg}`,
+      dif: `Bloco Raquel menos bloco João · ${cg}`, gd: `Raquel governadora menos bloco Raquel · ${cg}` }[L]).replace('% do chapa', '% da chapa')
     : { pref: 'Prefeitos na disputa de 2026', pct: `% de Raquel Lyra · ${ELEICAO_NOME[el]}`, venc: `Mais votado · ${ELEICAO_NOME[el]}`,
       dif: `Raquel menos bloco PSB · ${ELEICAO_NOME[el]}`, var: `Raquel em 2026 menos ${estado.base === 'd2' ? '2022 · 2º turno' : '2022 · 1º turno'}` }[L];
   $('#legenda-titulo').textContent = titulo + (L === 'venc' ? '' : estado.denom === 'w' ? ' · válidos' : ' · totais');
@@ -255,7 +257,7 @@ function legenda() {
   }
   if (L === 'venc') {
     box.innerHTML = dep()
-      ? `<div class="cats">${['R', 'J', 'O', 'E'].map((c) => `<div class="cat"><i style="background:${corCat(c)}"></i>${BLOCO_NOME[c]}</div>`).join('')}</div>`
+      ? `<div class="cats">${['R', 'J', 'O', 'E'].map((c) => `<div class="cat"><i style="background:${corCat(c)}"></i>${T(BLOCO_NOME[c])}</div>`).join('')}</div>`
       : `<div class="cats">${CAT_ORDEM[el].map((c) => `<div class="cat"><i style="background:${corCat(c)}"></i>${CAT_NOME[c]}</div>`).join('')}</div>`;
     return;
   }
@@ -269,7 +271,7 @@ function legenda() {
     return sinal(esc.limites[i - 1]);
   });
   const pontas = dep()
-    ? { pct: ['menos bloco Raquel', 'mais bloco Raquel (%)'], dif: ['Bloco João à frente', 'Bloco Raquel à frente (p.p.)'], gd: ['Bloco à frente de Raquel', 'Raquel à frente do bloco (p.p.)'] }[L]
+    ? { pct: ['menos bloco Raquel', 'mais bloco Raquel (%)'], dif: ['Bloco João à frente', 'Bloco Raquel à frente (p.p.)'], gd: ['Bloco à frente de Raquel', 'Raquel à frente do bloco (p.p.)'] }[L].map(T)
     : { pct: ['menos Raquel', 'mais Raquel (%)'], dif: [`${ADV[el].replace(' (PSB)', '')} à frente`, 'Raquel à frente (p.p.)'], var: ['Raquel caiu', 'Raquel subiu (p.p.)'] }[L];
   box.innerHTML = `<div class="escala">${cores.map((c) => `<span style="background:${c}"></span>`).join('')}</div>
     <div class="escala escala-rotulos">${rotulos.map((r) => `<em>${r}</em>`).join('')}</div>
@@ -288,7 +290,7 @@ function mostraPopup(f, lngLat) {
     corpo += linhaPop(nomeR(), corCat('R'), fmtPct(v.pr));
     corpo += linhaPop(nomeA(), corA(), fmtPct(v.pa));
     if (estado.leitura === 'var') corpo += linhaPop('Variação de Raquel', '', fmtPp(v[estado.base]));
-    if (dep()) corpo += linhaPop('Raquel governadora − bloco', '', fmtPp(v.g));
+    if (dep()) corpo += linhaPop(T('Raquel governadora − bloco'), '', fmtPp(v.g));
     corpo += linhaPop(dep() ? 'Candidato mais votado' : 'Mais votado', '', v.vn);
     corpo += linhaPop(estado.denom === 'w' ? 'Votos válidos' : 'Votos totais', '', fmtInt.format(v.n));
   } else corpo = '<p class="pop-sub">Sem dado nesta eleição.</p>';
@@ -307,7 +309,7 @@ function atualizaFoco() {
   const extra = estado.leitura === 'var'
     ? `<div class="num"><b>${fmtPp(v[estado.base])}</b><span>Raquel em 2026 menos ${estado.base === 'd2' ? '2022 · 2º turno' : '2022 · 1º turno'}</span></div>`
     : estado.leitura === 'gd'
-    ? `<div class="num"><b>${fmtPp(v.g)}</b><span>Raquel governadora menos bloco Raquel</span></div>`
+    ? `<div class="num"><b>${fmtPp(v.g)}</b><span>${T('Raquel governadora menos bloco Raquel')}</span></div>`
     : `<div class="num"><b>${fmtInt.format(v.n)}</b><span>${estado.denom === 'w' ? 'votos válidos' : 'votos totais'}</span></div>`;
   $('#foco').innerHTML = `
     <div class="numeros">
@@ -335,8 +337,8 @@ function eleitos() {
   const l = listaEleitos();
   const n = l.reduce((a, e) => (a[e.bloco] = (a[e.bloco] || 0) + 1, a), {});
   $('#eleitos-titulo').textContent = `Eleitos · ${CARGO_NOME[estado.cargo]} · ${l.length} vagas`;
-  $('#eleitos').innerHTML = `<div class="cats">${['R', 'J', 'O'].map((b) => `<div class="cat"><i style="background:${corCat(b)}"></i>${BLOCO_NOME[b]} · ${n[b] || 0}</div>`).join('')}</div>
-    <p class="fonte">Lado pela coligação de governador; ${l.filter((e) => e.fonte).length} eleitos com ajuste individual (fonte na lista).</p>`;
+  $('#eleitos').innerHTML = `<div class="cats">${['R', 'J', 'O'].map((b) => `<div class="cat"><i style="background:${corCat(b)}"></i>${T(BLOCO_NOME[b])} · ${n[b] || 0}</div>`).join('')}</div>
+    <p class="fonte">${sen() ? 'Os dois eleitos são da chapa de João; a lista mostra os votos de cada um.' : `Lado pela coligação de governador; ${l.filter((e) => e.fonte).length} eleitos com ajuste individual (fonte na lista).`}</p>`;
 }
 /* lado do eleito: "coligação" ou "ajuste" com link da fonte; o texto completo fica na dica */
 function linkFonte(f) {
@@ -350,8 +352,8 @@ function tabelaEleitos() {
   const col = ordem.col in l[0] ? ordem.col : 'votos';
   l.sort((a, b) => (ordem.desc ? -1 : 1) * (a[col] > b[col] ? 1 : a[col] < b[col] ? -1 : 0));
   $('#tabela-titulo').textContent = `Eleitos · ${CARGO_NOME[estado.cargo]} · 2026`;
-  $('#tabela').innerHTML = `<thead><tr><th data-c="nome">Eleito</th><th data-c="partido">Partido</th><th data-c="bloco">Bloco</th><th data-c="votos">Votos</th><th data-c="fonte">Lado</th></tr></thead>
-    <tbody>${l.map((e) => `<tr><td><a href="deputado.html#${estado.cargo}-${e.nr}" title="Ver onde ${e.nome} teve votos">${e.nome}</a></td><td>${e.partido}</td><td><i class="bola" style="background:${corCat(e.bloco)}"></i>${BLOCO_NOME[e.bloco]}</td><td>${fmtInt.format(e.votos)}</td><td>${linkFonte(e.fonte)}</td></tr>`).join('')}</tbody>`;
+  $('#tabela').innerHTML = `<thead><tr><th data-c="nome">Eleito</th><th data-c="partido">Partido</th><th data-c="bloco">${T('Bloco')}</th><th data-c="votos">Votos</th><th data-c="fonte">Lado</th></tr></thead>
+    <tbody>${l.map((e) => `<tr><td><a href="deputado.html#${estado.cargo}-${e.nr}" title="Ver onde ${e.nome} teve votos">${e.nome}</a></td><td>${e.partido}</td><td><i class="bola" style="background:${corCat(e.bloco)}"></i>${T(BLOCO_NOME[e.bloco])}</td><td>${fmtInt.format(e.votos)}</td><td>${linkFonte(e.fonte)}</td></tr>`).join('')}</tbody>`;
   $('#tabela').querySelectorAll('th').forEach((th) => th.onclick = () => {
     ordem = { col: th.dataset.c, desc: ordem.col === th.dataset.c ? !ordem.desc : true }; tabela();
   });
@@ -376,7 +378,7 @@ function tabela() {
   const lim = linhas.slice(0, 400);
   const colVar = estado.leitura === 'var' ? estado.base : estado.leitura === 'gd' ? 'g' : null;
   $('#tabela-titulo').textContent = `${NIVEL_NOME[estado.nivel]} · ${dep() ? CARGO_NOME[estado.cargo] + ' · 2026' : ELEICAO_NOME[estado.eleicao]}${lim.length < linhas.length ? ` · ${lim.length} de ${linhas.length}` : ''}`;
-  $('#tabela').innerHTML = `<thead><tr><th data-c="nome">Unidade</th><th data-c="n">${estado.denom === 'w' ? 'Válidos' : 'Votos'}</th><th data-c="pr">${dep() ? 'Bloco Raquel' : 'Raquel'}</th><th data-c="pa">${dep() ? 'Bloco João' : ADV[estado.eleicao].split(' ')[0]}</th>${colVar ? `<th data-c="${colVar}">${colVar === 'g' ? 'Governadora − bloco' : 'Variação'}</th>` : '<th data-c="vn">Mais votado</th>'}${nivel === 'municipio' ? '<th data-c="pref">Prefeito com</th>' : ''}</tr></thead>
+  $('#tabela').innerHTML = `<thead><tr><th data-c="nome">Unidade</th><th data-c="n">${estado.denom === 'w' ? 'Válidos' : 'Votos'}</th><th data-c="pr">${dep() ? T('Bloco Raquel') : 'Raquel'}</th><th data-c="pa">${dep() ? T('Bloco João') : ADV[estado.eleicao].split(' ')[0]}</th>${colVar ? `<th data-c="${colVar}">${colVar === 'g' ? T('Governadora − bloco') : 'Variação'}</th>` : '<th data-c="vn">Mais votado</th>'}${nivel === 'municipio' ? '<th data-c="pref">Prefeito com</th>' : ''}</tr></thead>
     <tbody>${lim.map((r) => `<tr><td>${r.nome}</td><td>${fmtInt.format(r.n)}</td><td>${fmtPct(r.pr)}</td><td>${fmtPct(r.pa)}</td><td>${colVar ? fmtPp(r[colVar]) : r.vn}</td>${nivel === 'municipio' ? `<td>${r.pref}</td>` : ''}</tr>`).join('')}</tbody>`;
   $('#tabela').querySelectorAll('th').forEach((th) => th.onclick = () => {
     ordem = { col: th.dataset.c, desc: ordem.col === th.dataset.c ? !ordem.desc : true }; tabela();
@@ -393,7 +395,8 @@ function sincroniza() {
   marca('#cargo', estado.cargo, 'aria-checked');
   document.querySelectorAll('#leitura button').forEach((b) => {
     const nomes = ABA_NOME[dep() ? 'dep' : 'gov'];
-    if (nomes[b.dataset.v]) b.textContent = nomes[b.dataset.v];
+    if (nomes[b.dataset.v]) b.textContent = T(nomes[b.dataset.v]).replace('% do chapa', '% da chapa');
+    if (b.dataset.v === 'gd') b.textContent = sen() ? 'Governador × senado' : 'Governador × deputado';
     if (b.dataset.v === 'var') b.hidden = dep();
     if (b.dataset.v === 'gd') b.hidden = !dep();
   });
@@ -409,7 +412,8 @@ function sincroniza() {
   aviso.hidden = !dep() && !['var', 'dif', 'pref'].includes(estado.leitura);
   aviso.textContent = dep() && estado.leitura !== 'pref'
     ? (estado.leitura === 'gd'
-      ? 'Compara o voto em Raquel para governadora com o voto nos candidatos a deputado do bloco dela. Roxo: Raquel teve mais voto que o bloco. Verde: o bloco teve mais voto que ela. Exemplo: +5 p.p. quer dizer que, de cada 100 votos, Raquel teve 5 a mais do que os deputados do bloco somados. É saldo do lugar, não mostra o voto de cada eleitor.'
+      ? (sen() ? 'Compara o voto em Raquel para governadora com o voto nos candidatos ao senado da chapa dela (Eduardo da Fonte e Túlio Gadêlha), em % dos votos. Roxo: Raquel teve mais voto que a chapa. Verde: a chapa teve mais voto que ela. É saldo do lugar, não mostra o voto de cada eleitor.' : '') || 'Compara o voto em Raquel para governadora com o voto nos candidatos a deputado do bloco dela. Roxo: Raquel teve mais voto que o bloco. Verde: o bloco teve mais voto que ela. Exemplo: +5 p.p. quer dizer que, de cada 100 votos, Raquel teve 5 a mais do que os deputados do bloco somados. É saldo do lugar, não mostra o voto de cada eleitor.'
+      : sen() ? 'Chapa pela coligação registrada no TSE: Raquel com Eduardo da Fonte (PP) e Túlio Gadêlha (PSD); João com Humberto Costa (PT) e Marília Arraes (PDT). Mendonça Filho (PL), Carlos Sant\'Anna (NOVO) e os demais ficam em "outros". Cada eleitor vota em até dois; percentuais sobre os votos, como o TSE.'
       : 'Bloco pelo partido na coligação de governador (TSE), com ajuste individual só nos eleitos de lado público diferente. Voto de legenda fica com o partido.')
     : estado.leitura === 'pref'
     ? 'Lado declarado pelos prefeitos em 2026 (lista do Jamildo.com). Mostra só município; a eleição escolhida vale para a dica e o painel. Prefeito aliado e voto andam juntos, mas isso não mostra causa.'

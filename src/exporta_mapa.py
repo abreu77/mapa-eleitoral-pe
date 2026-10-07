@@ -29,7 +29,8 @@ RAQUEL = {'2022T1': '45', '2022T2': '45', '2026T1': '55'}
 ADVERSARIO = {'2022T1': '40', '2022T2': '77', '2026T1': '40'}
 # vencedor em categorias com no máximo 3 cores no mapa (regra de cor para mapas)
 CAT = {'2022T1': {'45': 'R', '77': 'M'}, '2022T2': {'45': 'R', '77': 'M'}, '2026T1': {'55': 'R', '40': 'J'}}
-DEP = {'DE2026': 'estadual', 'DF2026': 'federal'}
+DEP = {'DE2026': 'estadual', 'DF2026': 'federal', 'SE2026': 'senador'}
+N_MAPA_SENADO = 6   # senado: mapa individual dos 6 mais votados (decisão do Diego); deputados: só os eleitos
 
 sec = pd.read_csv(L / 'secoes.csv', dtype=TIPOS)
 lon = pd.read_csv(L / 'votos_secao_longo.csv', dtype=TIPOS)
@@ -136,9 +137,17 @@ mun_meta = {r.cd_tse: {'nome': r.nm_municipio, 'ibge': r.cd_ibge, 'rd': r.rd, 'm
             for r in mun.itertuples()}
 # candidatos a deputado: número -> [nome de urna, partido, bloco, eleito, votos, fonte do ajuste de bloco,
 #                                   federação (nome do TSE ou None), bloco do partido na coligação de governador]
+def com_mapa(cargo):
+    d = dcand[dcand.cargo == cargo]
+    return list(d.nlargest(N_MAPA_SENADO, 'votos').nr_candidato if cargo == 'senador' else d[d.eleito].nr_candidato)
+
+
+mapas = {el: com_mapa(cargo) for el, cargo in DEP.items()}
+#                                   ..., 1 se tem mapa individual (deputado.html)
 cands = {el: {r.nr_candidato: [r.nome, r.partido, r.bloco, int(r.eleito), int(r.votos),
                                r.fonte_ajuste if isinstance(r.fonte_ajuste, str) else None,
-                               r.nome_federacao if isinstance(r.nome_federacao, str) else None, r.bloco_coligacao]
+                               r.nome_federacao if isinstance(r.nome_federacao, str) else None, r.bloco_coligacao,
+                               int(r.nr_candidato in mapas[el])]
               for r in dcand[dcand.cargo == cargo].itertuples()} for el, cargo in DEP.items()}
 (OUT / 'agregados.json').write_text(json.dumps({'municipio': pol['municipio'], 'rd': pol['rd'], 'meso': pol['meso'],
                                                 'estado': pol['estado'], 'municipios_meta': mun_meta,
@@ -205,12 +214,13 @@ for nivel in ('secao', 'local', 'zona'):
     pontos[nivel] = {el: len(v['linhas']) for el, v in por_el.items()}
     ordem[nivel] = {el: [l[5] for l in por_el[el]['linhas']] for el in DEP}
 
-# ---------------------------------------------------------------- deputados eleitos: um arquivo por eleito (deputado.html)
-# votos do eleito por unidade; seção, local e zona em lista na ordem de pontos_<nível>_dep.json
+# ---------------------------------------------------------------- um arquivo por candidato com mapa (deputado.html)
+# deputados eleitos e os 6 mais votados para o senado; votos por unidade; seção, local e zona em lista
+# na ordem de pontos_<nível>_dep.json
 DIR_DEP = OUT / 'deputados'
 DIR_DEP.mkdir(exist_ok=True)
 for el, cargo in DEP.items():
-    eleitos = dcand[(dcand.cargo == cargo) & dcand.eleito].nr_candidato
+    eleitos = mapas[el]
     c = dcan[(dcan.cargo == cargo) & dcan.nr_votavel.isin(eleitos)]
     sem_transito = c[~c.transito.fillna(False).astype(bool)]
     por = {nivel: (sem_transito if nivel in ('secao', 'local') else c).groupby(['nr_votavel', chave]).qt_votos.sum()

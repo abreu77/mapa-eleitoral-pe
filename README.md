@@ -1,6 +1,6 @@
-# Mapa eleitoral de Pernambuco · governador 2022–2026 e deputados 2026
+# Mapa eleitoral de Pernambuco · governador 2022–2026, deputados e senado 2026
 
-Mapa interativo e análise dos votos para governador de Pernambuco no 1º e no 2º turno de 2022 e no 1º turno de 2026, e dos votos para deputado estadual e federal em 2026, da seção eleitoral ao estado.
+Mapa interativo e análise dos votos para governador de Pernambuco no 1º e no 2º turno de 2022 e no 1º turno de 2026, e dos votos para deputado estadual, deputado federal e senador em 2026, da seção eleitoral ao estado.
 
 **Mapa:** https://abreu77.github.io/mapa-eleitoral-pe/
 **Conclusões:** [`CONCLUSOES.md`](CONCLUSOES.md)
@@ -14,7 +14,8 @@ Projeto independente de Diego Abreu. Não é publicação do Governo de Pernambu
 - **Nível**, numa barra deslizante: seção, local de votação, zona, município, Região de Desenvolvimento, mesorregião e estado.
 - **Base:** votos totais ou votos válidos.
 - **Cargo:** governador ou deputado (estadual e federal, 2026). Para deputado, os votos são somados por bloco: bloco Raquel, bloco João e outros. Leituras: % do bloco Raquel, bloco mais votado, bloco Raquel menos bloco João e Raquel governadora menos o bloco dela para deputado. Lista dos eleitos com o lado de cada um.
-- **Deputados eleitos** (tela própria): onde cada um dos 74 eleitos teve votos, sozinho ou somado por partido ou federação, com a cor do lado na disputa para governador.
+- **Senador** (2026): chapa de Raquel (Eduardo da Fonte, Túlio Gadêlha) × chapa de João (Humberto Costa, Marília Arraes), com as mesmas leituras dos deputados; percentuais sobre os votos, como o TSE (cada eleitor vota em até dois).
+- **Candidatos** (tela própria): onde cada um dos 74 deputados eleitos teve votos, sozinho ou somado por partido ou federação, e os 6 candidatos mais votados ao senado, eleitos ou não, com a cor do lado na disputa para governador.
 - Tabela com os mesmos números e versão para celular.
 
 ## Perguntas da análise
@@ -30,7 +31,7 @@ Resumo: a mudança entre as eleições foi territorial, município a município,
 - **Base dos percentuais:** no mapa, votos totais (brancos e nulos no denominador) ou votos válidos, à escolha. Na análise, votos totais. Os votos válidos conferem com o resultado oficial nas três eleições (Raquel: 20,58%, 58,70% e 53,27%).
 - **Seções e locais:** seção não tem contorno oficial; no mapa, cada seção é um ponto ao redor do seu local de votação (coordenadas do TSE). Zona é um ponto no centro dos seus locais. 425 seções de 2022 sem coordenada recuperaram a do cadastro de 2026; seções de voto em trânsito entram nos totais e não nos pontos.
 - **Comparação entre eleições:** seções casadas por zona + seção (20.404 nas duas eleições; 1.456 mudaram de local e ficam marcadas). Como turno, adversário e posição de Raquel mudam, a variação descreve e não mede ganho ou perda.
-- **Movimento de eleitorados:** regressão de Goodman com restrição por seção, abstenção como categoria, incerteza por reamostragem de municípios.
+- **Movimento de eleitorados:** regressão de Goodman com restrição por seção, abstenção como categoria, incerteza por reamostragem de municípios; e modelo hierárquico de Rosen et al. (2001), pacote eiPack, com taxas próprias por seção, rodado à parte para municípios de prefeito aliado e de oposição, com quatro cadeias por grupo e checagem de convergência (R-hat). Scripts: `src/inferencia_ecologica.R` e `src/inferencia_ecologica_resumo.R`.
 - **Aliança dos prefeitos:** lista do Jamildo.com (estado em 06/10/2026), única fonte pública encontrada com classificação por município. Ressalvas no [`CONCLUSOES.md`](CONCLUSOES.md).
 - **Blocos de deputados:** o partido segue a coligação de governador registrada no TSE (Raquel: PSD, PODE, AVANTE, PSDB, Cidadania, União, PP; João: PSB, PT, PCdoB, PV, MDB, Republicanos, PDT, PRD, Solidariedade, DC). Ajuste individual só nos eleitos com apoio público a outro lado: estaduais pela lista do Jamildo.com (05/10/2026), federais por notícias, com a fonte de cada um no site. O voto de legenda fica com o partido. Script: `src/deputados.py`.
 - **Robustez da associação aliança × voto:** controles (voto de 2022, renda, região), erro agrupado por microrregião com wild cluster bootstrap, placebo com 2022 e descontinuidade em eleições municipais apertadas de 2024 (inconclusiva por falta de casos).
